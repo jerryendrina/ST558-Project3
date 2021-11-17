@@ -11,11 +11,11 @@ shinyUI(fluidPage(
                sidebarPanel(h2("ST558 Final Project"),
                             h3("By: Jeremias Endrina Jr."),
                             br(),
-                            h4("External Links"),
+                            h4("Links to Github"),
                             tags$div(
                               tags$ul(
-                                tags$li(a(href = "https://github.com/jerryendrina/ST558-Project3", "REPOSITORY")),
-                                tags$li(a(href = "https://jerryendrina.github.io/", "BLOG"))
+                                tags$li(a(href = "https://github.com/jerryendrina/ST558-Project3", "Repository")),
+                                tags$li(a(href = "https://jerryendrina.github.io/", "Blog"))
                               )
                             )
                ),
@@ -25,7 +25,7 @@ shinyUI(fluidPage(
                  h2("Welcome to my Project Shiny App!"),
                  br(),
                  tags$div(
-                   h3("Introduction"),
+                   h3("Purpose"),
                    tags$p("Write intro here!"),
                    h3("Data Description"),
                    tags$p("Write something about data here"),
@@ -49,10 +49,39 @@ shinyUI(fluidPage(
                sidebarPanel(
                  h2("Data Exploration"),
                  br(),
-                 h3("Graphical Summaries")
+                 h3("Graphical Summaries"),
+                 radioButtons(inputId="plottype", label="Plot Type",
+                              choiceValues=c("hist","bar","scat"),
+                              choiceNames=c("Histogram","Bar Plot", "Scatter Plot")),
+                 
+                 conditionalPanel("input.plottype == 'hist'",
+                                  selectInput(inputId="histvar",
+                                              label="Histogram Variables",
+                                              choices=c("Household Income"="householdincome",
+                                                        "Reading Score"="readingscore",
+                                                        "Writing Score"="writingscore",
+                                                        "Math Score"="mathscore",
+                                                        "Reading Score State Level"="readingscoreSL",
+                                                        "Writing Score State Level"="writingscoreSL")),
+                                  sliderInput("bins", "Number of Bins",
+                                              min=20, max=40, value=30)
+                                  ),
+                 conditionalPanel("input.plottype == 'bar'",
+                                  selectInput(inputId = 'barvar',
+                                              label = "Bar Plot Variables",
+                                              choices=c("Lunch Status"="freelunch",
+                                                        "Covid Positive" = "covidpos",
+                                                        "Number of Computers" = "numcomputers",
+                                                        "Family Size" = "familysize")),
+                                  checkboxInput(inputId="barcolor",
+                                                label="Group whether pass or fail in Math State Test?")
+                                  )
+                 
+                 
                ),
                mainPanel(
                  h2("Graphical Summary"),
+                 plotlyOutput("explorePlot"),
                  br(),
                  h2('Data Set')
                )
@@ -103,10 +132,6 @@ shinyUI(fluidPage(
     
     
     )
-    
-    
-    
-    
-    
+
   )
 )
