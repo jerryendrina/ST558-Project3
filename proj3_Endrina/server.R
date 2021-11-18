@@ -3,6 +3,7 @@ library(shiny)
 library(tidyverse)
 library(readxl)
 library(plotly)
+library(DT)
 
 
 # Read in data and subset it
@@ -168,10 +169,92 @@ shinyServer(function(input, output, session) {
                  yaxis = list(title = list(text='<b> Household Income </b>')),
                  legend = list(x = .8, y = 0.9, title=list(text='<b>  Pass/Fail? </b>')))  
       }
-      
+    }
+  })
+  #Numeric Summary Table
+  output$exploreSummary <- renderDataTable({
+    if(input$plottype == 'hist'){
+      if(input$histvar == "householdincome"){
+        data %>% dplyr::select(householdincome, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(householdincome),2), Q1=round(quantile(householdincome,0.25),2),
+                           Median=round(median(householdincome),2), Mean=round(mean(householdincome), 2),
+                           Q3 = round(quantile(householdincome,.75),2), Max=round(max(householdincome),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "readingscore"){
+        data %>% dplyr::select(readingscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(readingscore),2), Q1=round(quantile(readingscore,0.25),2),
+                           Median=round(median(readingscore),2), Mean=round(mean(readingscore), 2),
+                           Q3 = round(quantile(readingscore,.75),2), Max=round(max(readingscore),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "writingscore"){
+        data %>% dplyr::select(writingscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(writingscore),2), Q1=round(quantile(writingscore,0.25),2),
+                           Median=round(median(writingscore),2), Mean=round(mean(writingscore), 2),
+                           Q3 = round(quantile(writingscore,.75),2), Max=round(max(writingscore),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "mathscore"){
+        data %>% dplyr::select(mathscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(mathscore),2), Q1=round(quantile(mathscore,0.25),2),
+                           Median=round(median(mathscore),2), Mean=round(mean(mathscore), 2),
+                           Q3 = round(quantile(mathscore,.75),2), Max=round(max(mathscore),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "readingscoreSL"){
+        data %>% dplyr::select(readingscoreSL, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(readingscoreSL),2), Q1=round(quantile(readingscoreSL,0.25),2),
+                           Median=round(median(readingscoreSL),2), Mean=round(mean(readingscoreSL), 2),
+                           Q3 = round(quantile(readingscoreSL,.75),2), Max=round(max(readingscoreSL),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "writingscoreSL"){
+        data %>% dplyr::select(writingscoreSL, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(writingscoreSL),2), Q1=round(quantile(writingscoreSL,0.25),2),
+                           Median=round(median(writingscoreSL),2), Mean=round(mean(writingscoreSL), 2),
+                           Q3 = round(quantile(writingscoreSL,.75),2), Max=round(max(writingscoreSL),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else if (input$histvar == "numcomputers"){
+        data %>% dplyr::select(numcomputers, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(numcomputers),2), Q1=round(quantile(numcomputers,0.25),2),
+                           Median=round(median(numcomputers),2), Mean=round(mean(numcomputers), 2),
+                           Q3 = round(quantile(numcomputers,.75),2), Max=round(max(numcomputers),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      } else {
+        data %>% dplyr::select(familysize, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
+          dplyr::summarize(Min=round(min(familysize),2), Q1=round(quantile(familysize,0.25),2),
+                           Median=round(median(familysize),2), Mean=round(mean(familysize), 2),
+                           Q3 = round(quantile(familysize,.75),2), Max=round(max(familysize),2)) %>%
+          datatable(rownames=FALSE, class="compact")
+      }
+    } else if (input$plottype == "bar"){
+      if(input$barvar == "freelunch"){
+        table(data$freelunch, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Lunch Status", "Pass/Fail", "Count"))
+      } else if(input$barvar == "covidpos"){
+        table(data$covidpos, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Covid Status", "Pass/Fail", "Count"))
+      } else if(input$barvar == "school"){
+        table(data$school, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("School Type", "Pass/Fail", "Count"))
+      } else if(input$barvar == "gradelevel"){
+        table(data$gradelevel, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Grade Level", "Pass/Fail", "Count"))
+      } else if(input$barvar == "gender"){
+        table(data$gender, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Gender", "Pass/Fail", "Count"))
+      } else if(input$barvar == "fathereduc"){
+        table(data$fathereduc, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Gender", "Pass/Fail", "Count"))
+      } else {
+        table(data$mothereduc, data$mathPassFail) %>%
+          datatable(rownames=FALSE, class="compact",
+                    colnames=c("Gender", "Pass/Fail", "Count"))
+      }
       
     }
-    
     
   })
   

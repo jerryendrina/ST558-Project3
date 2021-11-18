@@ -125,6 +125,8 @@ shinyUI(fluidPage(
                  h2("Graphical Summary"),
                  plotlyOutput("explorePlot"),
                  br(),
+                 h2("Numerical Summaries"),
+                 dataTableOutput("exploreSummary"),
                  h2('Data Set')
                )
              )),
