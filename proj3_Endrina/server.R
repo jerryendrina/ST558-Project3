@@ -8,20 +8,32 @@ library(DT)
 
 # Read in data and subset it
 data <- read_excel("../COVID-19-Constructed-Dataset.xlsx")
+
 data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 60, "Fail", "Pass")) %>%
-    dplyr::select(-c(studentID, mathscoreSL))
+  dplyr::select(-c(studentID, mathscoreSL))
+
+data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
+                        gender=if_else(gender==1, "Male", "Female"),
+                        covidpos=if_else(covidpos==1, "Positive", "Negative"),
+                        freelunch=if_else(freelunch==1, "EatsFreeLunch", "PaysForLunch"),
+                        fathereduc=if_else(fathereduc==4, "PhD", 
+                                           if_else(fathereduc==3, "Masters", 
+                                                   if_else(fathereduc==2, "Bachelor",
+                                                           if_else(fathereduc==1, "HSDiploma",
+                                                                   "NoHSDiploma")))),
+                        mothereduc=if_else(mothereduc==4, "PhD", 
+                                           if_else(mothereduc==3, "Masters", 
+                                                   if_else(mothereduc==2, "Bachelor",
+                                                           if_else(mothereduc==1, "HSDiploma",
+                                                                   "NoHSDiploma"))))
+)
+
 cols <- c(1:4, 6, 9:10, 16)
 data[cols] <-lapply(data[cols], factor)
 
-#rename levels of factors
-levels(data$school) <- list(Wealthy="0", Poor="1")
-levels(data$gender) <- list(Male="1", Female="0")
-levels(data$covidpos) <- list(Positive="1", Negative="0")
-levels(data$freelunch) <- list(EatsFreeLunch="1", PaysForLunch = "0")
-levels(data$fathereduc) <- list(PhD="4", Masters="3", Bachelor="2", HSDiploma="1", NoHSDiploma="0")
-levels(data$mothereduc) <- list(PhD="4", Masters="3", Bachelor="2", HSDiploma="1", NoHSDiploma="0")
+colNames <- names(data)
 
-#create histogram
+#split data into training and test set
 
 
 
@@ -117,37 +129,37 @@ shinyServer(function(input, output, session) {
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>'))) 
           } else if(input$barvar == "covidpos"){
             plot_ly(data = data, x = ~covidpos, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> Covid Status </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
           } else if(input$barvar == "school"){
             plot_ly(data = data, x = ~school, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> School Type </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
           } else if(input$barvar == "gradelevel"){
             plot_ly(data = data, x = ~gradelevel, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> Grade Level </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
           } else if(input$barvar == "gender"){
             plot_ly(data = data, x = ~gender, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> Gender </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
           } else if(input$barvar == "fathereduc"){
             plot_ly(data = data, x = ~fathereduc, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> Fathers Education </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
           } else if(input$barvar == "mothereduc"){
             plot_ly(data = data, x = ~mothereduc, type = "histogram", 
-                    color = mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
+                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
               layout(xaxis = list(title = list(text='<b> Mothers Education </b>')),
                      yaxis = list(title = list(text='<b> Frequency </b>')),
                      legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
@@ -155,7 +167,7 @@ shinyServer(function(input, output, session) {
         }
       
     } else{
-      #generte scatter plot
+      #generate scatter plot
       if(input$scatcolor == FALSE){
         plot_ly(data=data, x=~mathscore, y=~householdincome, type="scatter",
                 mode="markers", marker=list(size=4)) %>%
@@ -257,6 +269,21 @@ shinyServer(function(input, output, session) {
     }
     
   })
+  
+  #DATA SET TAB
+  data.out <- reactive({
+    data[input$rows[1]:input$rows[2], input$cols]
+  })
+  
+  output$fulldata <- renderDataTable({
+    data.out()
+  })
+  
+  output$download <- downloadHandler(
+    filename = function(){"data.csv"},
+    content = function(fname){
+      write.csv(data.out(), fname)
+    })
   
 })
 
