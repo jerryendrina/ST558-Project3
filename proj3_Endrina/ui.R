@@ -1,9 +1,11 @@
 library(shiny)
+library(shinyWidgets)
 library(tidyverse)
 library(readxl)
 library(plotly)
 library(DT)
 library(shinythemes)
+library(rattle)
 
 
 # Read in data and subset it
@@ -31,7 +33,7 @@ data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
 cols <- c(1:4, 6, 9:10, 16)
 data[cols] <-lapply(data[cols], factor)
 
-colNames <- names(data)
+colNames <- names(data[,1:15])
 
 
 
@@ -46,7 +48,7 @@ shinyUI(navbarPage(
   
   tabsetPanel(
     
-    #first tab:
+    ################### first tab: information #############################
     tabPanel("Information", fluid=TRUE,
              # Sidebar
              sidebarLayout(
@@ -85,7 +87,7 @@ shinyUI(navbarPage(
              )
              ),
     
-    #second tab
+    ##################### second tab: data exploration #######################
     tabPanel("Exploration", fluid=TRUE,
              sidebarLayout(
                sidebarPanel(
@@ -166,90 +168,203 @@ shinyUI(navbarPage(
              )),
 
     
-    #third tab
-    tabPanel("Modeling Page", fluid=TRUE,        #logistic, classification tree and RF
-             sidebarLayout(
-               sidebarPanel(
-                 h3("Modeling Options"),
-                 sliderInput("pTrain", "Percent of Data to Train:",
-                             min=.60, value=0.75, max=.80, step=.05),
-                 sliderInput("cp", "Cp for Classification Tree:",
-                             min = .01, value = .0565, max = .065, step = .005),
-                 br(),
-                 checkboxGroupInput(inputId="preds", label="Click predictors to include:",
-                                    selected= colNames,
-                                    choices= colNames
-                                    ),
-                 actionButton("run", "Run modeling!"),
-                 h3("Prediction Inputs"),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("school") > -1',
-                                  selectInput("school", label = "School Type", 
-                                              choices = c("Wealthy", "Poor"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("gradelevel") > -1',
-                                  selectInput("gradelevel", label = "Grade Level", 
-                                              choices = c("6","7","8","9","10","11","12"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("gender") > -1',
-                                  selectInput("gender", label = "Gender", 
-                                              choices = c("Male","Female"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("covidpos") > -1',
-                                  selectInput("covidpos", label = "Covid Status", 
-                                              choices = c("Positive","Negative"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("freelunch") > -1',
-                                  selectInput("freelunch", label = "Lunch Status", 
-                                              choices = c("EatsFreelunch","PaysForLunch"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("numcomputers") > -1',
-                                  numericInput("numcomputers", label = "Number of Computers", 
-                                               value = 0, min = 0, max = 10, step=1)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("familysize") > -1',
-                                  numericInput("familysize", label = "Family Size", 
-                                               value = 0, min = 0, max = 20, step=1)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("householdincome") > -1',
-                                  numericInput("householdincome", label = "House Hold Income", 
-                                               value = 0, min = 0, max = 500000, step=10000)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("fathereduc") > -1',
-                                  selectInput("fathereduc", label = "Father's Education", 
-                                              choices = c("NoHSDiploma","HSDiploma","Bachelor","Masters","PhD"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("mothereduc") > -1',
-                                  selectInput("mothereduc", label = "Mother's Education", 
-                                              choices = c("NoHSDiploma","HSDiploma","Bachelor","Masters","PhD"))),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("readingscore") > -1',
-                                  numericInput("readingscore", label = "Reading Score", 
-                                               value = 0, min = 0, max = 100, step=10)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("writingscore") > -1',
-                                  numericInput("writingscore", label = "Writing Score", 
-                                               value = 0, min = 0, max = 100, step=10)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("mathscore") > -1',
-                                  numericInput("mathscore", label = "Math Score", 
-                                               value = 0, min = 0, max = 100, step=10)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("readingscoreSL") > -1',
-                                  numericInput("readingscoreSL", label = "Reading Score State Level", 
-                                               value = 0, min = 0, max = 100, step=10)),
-                 conditionalPanel(condition = 'input.preds && input.preds.indexOf("writingscoreSL") > -1',
-                                  numericInput("writingscoreSL", label = "Writing Score State Level", 
-                                               value = 0, min = 0, max = 100, step=10))
-               ),
-               mainPanel(
-                 tabsetPanel(
-                   tabPanel("Modeling Info", type='tabs',
-                            mainPanel(
-                              h2("Write Descriptions of 3 Models here!")
-                              )
-                            ),
-                   tabPanel("Modeling Fit", type='tabs', 
-                            mainPanel(
-                              h2("Model Fitting")
-                              )
-                            ),
-                   tabPanel("Prediction", type='tabs',
-                            mainPanel(
-                              h2("Prediction")
-                              )
-                            )
-                 )
-               )
-             )),
+    ################## third tab: Modeling page with 3 tabs ###################
+    navbarMenu(
+      
+      #add a title
+      title = "Modeling",
+      
+      #### MODELING INFO TAB ####
+      tabPanel(
+        title = "Modeling Information",
+        mainPanel(fluidPage(
+          br(),
+          h4("Purpose of the Modeling Section"),
+          #"The purpose...",
+          br(),
+          br(),
+          
+          #logistic regression overview
+          h4("Logistic Regression"),
+          uiOutput("logRegEx"),
+          br(),
+          br(),
+          
+          #classification tree overview
+          h4("Classification Trees"),
+          br(),
+          br(),
+          
+          #random forest overview
+          h4("Random Forests"),
+          br(),
+          br()
+        ))),
+      
+      #### FITTING MODELS TAB ####
+      tabPanel(
+        title = "Model Fitting",
+        
+        #sidebar panel
+        sidebarPanel(
+          h3("1.General Modeling Options"),
+          #option to split data
+          sliderInput(
+            inputId = "proTesting",
+            label = "1.1 Proportion of Data for Test Set:",
+            value = 0.2,
+            min = 0.1,
+            max = 0.5,
+            step = 0.05),
+          #option for number of cross validation
+          div(
+            numericInput(
+              inputId = "numFolds",
+              label = "1.2 Number of folds for cross-validation:",
+              value = 3,
+              min = 3,
+              max = 5,
+              step = 1)),
+          br(),
+          #Options for each model
+          h3("2. Specific Modeling Options"),
+          #logistic regression
+          selectInput(
+            inputId = "logRegVars",
+            label = "2.1 Variables for Logistic Regression:",
+            choices = colNames,
+            selected = colNames,
+            multiple = TRUE,
+            selectize = TRUE
+          ),
+          #classification tree
+          selectInput(
+            inputId = "treeVars",
+            label = "2.2 Variables for Classification Tree:",
+            choices = colNames,
+            selected = c("householdincome",
+                         "readingscore",
+                         "writingscore",
+                         "mathscore",
+                         "mathscoreSL",
+                         "readingscoreSL",
+                         "writingscoreSL"),
+            multiple = TRUE,
+            selectize = TRUE
+          ),
+          #additional tree parameters
+          h5(tags$b("2.2.1 Complexity Parameters for Trees")),
+          div(
+            uiOutput("minCpInput"),
+            style="display:inline-block"),
+          div(
+            uiOutput("maxCpInput"),
+            style= "display:inline-block"),
+          div(
+            numericInput(
+              inputId = "numCps",
+              label = "Number of Values:",
+              min = 1,
+              max = 5,
+              value = 3,
+              step = 1),
+            style = "display:inline-block"),
+          #random forest
+          selectInput(
+            inputId = "randForVars",
+            label = "2.3 Variables for Random Forest:",
+            choices = colNames,
+            selected = colNames,
+            multiple = TRUE,
+            selectize = TRUE),
+          #additional random forests parameters
+          h5(tags$b("2.3.1 Complexity Parameters for Random Forest")),
+          div(
+            selectizeInput(
+            inputId = "randForMtry",
+            label = "Select up to 5 values for mtry:",
+            choices = 1:length(colnames(data)[1:16]),
+            multiple = TRUE,
+            selected = c(2, 5, 8, 10, 12),
+            options = list(maxItems = 5)),
+            style="display:inline-block"),
+          #action button for fitting
+          br(),
+          actionButton(
+            inputId = "trainStart",
+            label = "Fit Models")
+          ),
+        
+        #main panel of modeling
+        mainPanel(
+          h3("Model Performance in Test Set"),
+          dataTableOutput("accTableOutput"),
+          br(),
+          h3("Logistic Regression Summary"),
+          dataTableOutput("logRegSummary"),
+          br(),
+          h3("Tree Diagram"),
+          plotOutput("treeSummary"),
+          br(),
+          h3("Random Forest Feature Importance"),
+          plotOutput("rfVarImpPlot")
+        )
+      ),
+      
+      
+      
+      #### PREDICTION TAB ####
+      tabPanel(
+        #title
+        title = "Prediction",
+
+        ##sidebarPanel
+        sidebarPanel(
+          #buttons to select model to use
+          radioButtons(
+            inputId = "modelType",
+            label = "Choose a Model",
+            choiceNames = c(
+              "Logistic Regressin",
+              "Classification Tree",
+              "Random Forest"),
+            choiceValues = c("logReg", "tree", "randFor"),
+            selected = "logReg"),
+
+          #action button to fit model
+          actionButton(
+            inputId = "predStart",
+            label = "Predict Pass or Fail"),
+
+          #depending on which model selected, change variables shown
+          conditionalPanel(
+            condition = "input.modelType == 'logReg'",
+            uiOutput("logRegPredInputs"),
+          ),
+          conditionalPanel(
+            condition = "input.modelType == 'tree'",
+            uiOutput("treePredInputs")
+          ),
+          conditionalPanel(
+            condition = "input.modelType == 'randFor'",
+            uiOutput("randForPredInputs")
+          )
+        ),
+
+        ##mainpanel
+        mainPanel(
+          h3("Prediction of Math State Level Test with Your Inputs:"),
+          dataTableOutput("preds")
+        )
+      )
+      
+      
+      
+    ),
     
-    #fourth tab
+      
+    
+    ############################ fourth tab: Data Set ##########################
     tabPanel("Data", fluid=TRUE,
              sidebarLayout(
                sidebarPanel(
