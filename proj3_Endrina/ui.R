@@ -6,13 +6,23 @@ library(plotly)
 library(DT)
 library(shinythemes)
 library(rattle)
+library(caret)
+library(ggplot2)
 
+
+#read-in data
+cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
+  dplyr::select(-c(id, ends_with("se"), ends_with("worst")))
+
+cancer$diagnosis <- as.factor(cancer$diagnosis)
+colNames2 <-names(cancer[,2:10])
 
 # Read in data and subset it
 data <- read_excel("../COVID-19-Constructed-Dataset.xlsx")
 
-data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 60, "Fail", "Pass")) %>%
+data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 70, "Fail", "Pass")) %>%
   dplyr::select(-c(studentID, mathscoreSL))
+
 
 data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
                         gender=if_else(gender==1, "Male", "Female"),
@@ -33,6 +43,15 @@ data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
 cols <- c(1:4, 6, 9:10, 16)
 data[cols] <-lapply(data[cols], factor)
 
+
+#create dummy dataset
+dummies <- dummyVars(mathPassFail ~., data=data)
+data2 <- as_tibble(predict(dummies, newdata=data)) %>% 
+  bind_cols(mathPassFail = data$mathPassFail)
+
+data2$mathPassFail <- as.factor(data2$mathPassFail)
+
+
 colNames <- names(data[,1:15])
 
 
@@ -42,9 +61,9 @@ colNames <- names(data[,1:15])
 shinyUI(navbarPage(
   
   #add title
-  title = "State Level Math Score of Students during the Pandemic",
+  title = "Breast Cancer Diagnosis Prediction",
   #add theme
-  theme = shinytheme("flatly"),
+  theme = shinytheme("united"),
   
   tabsetPanel(
     
@@ -66,7 +85,7 @@ shinyUI(navbarPage(
                
                #Main Panel
                mainPanel(
-                 h2("Welcome to my Project Shiny App!"),
+                 h2("Welcome to my Breast Cancer Diagnosis Prediction Shiny App!"),
                  br(),
                  tags$div(
                    h3("Purpose"),
@@ -88,50 +107,64 @@ shinyUI(navbarPage(
              ),
     
     ##################### second tab: data exploration #######################
-    tabPanel("Exploration", fluid=TRUE,
+    tabPanel("Data Exploration", fluid=TRUE,
              sidebarLayout(
                sidebarPanel(
+                 
                  h2("Data Exploration"),
                  br(),
-                 h3("Graphical Summaries"),
-                 radioButtons(inputId="plottype", label="Plot Type",
-                              choiceValues=c("hist","bar","scat"),
-                              choiceNames=c("Histogram","Bar Plot", "Scatter Plot")),
                  
-                 conditionalPanel("input.plottype == 'hist'",
-                                  selectInput(inputId="histvar",
-                                              label="Histogram Variables",
-                                              choices=c("Household Income"="householdincome",
-                                                        "Reading Score"="readingscore",
-                                                        "Writing Score"="writingscore",
-                                                        "Math Score"="mathscore",
-                                                        "Reading Score State Level"="readingscoreSL",
-                                                        "Writing Score State Level"="writingscoreSL",
-                                                        "Number of Computers"="numcomputers",
-                                                        "Family Size"="familysize"
-                                                        )),
-                                  sliderInput("bins", "Number of Bins",
-                                              min=0, max=50, value=10)
-                                  ),
-                 conditionalPanel("input.plottype == 'bar'",
-                                  selectInput(inputId = 'barvar',
-                                              label = "Bar Plot Variables",
-                                              choices=c("Lunch Status"="freelunch",
-                                                        "Covid Positive"="covidpos",
-                                                        "School Type"="school",
-                                                        "Grade Level"="gradelevel",
-                                                        "Gender"="gender",
-                                                        "Father's Education"="fathereduc",
-                                                        "Mother's Education"="mothereduc"
-                                                        )),
-                                  checkboxInput(inputId="barcolor",
-                                                label="Group whether pass or fail in Math State Test?")
-                                  ),
-                 conditionalPanel("input.plottype == 'scat'",
-                                  checkboxInput(inputId = "scatcolor",
-                                                label = "Color by pass or fail in Math State Test?")
-                                  ),
+                 h3("Graphical Summaries"),
+                 
+                 radioButtons(
+                   inputId="plotType", 
+                   label="Plot Type",
+                   choiceValues=c("histogram", "scatterPlot"),
+                   choiceNames=c("Histogram", "Scatter Plot"),
+                   selected="histogram"),
+                 
+                 #only show if histogram is selected
+                 conditionalPanel(
+                   condition = "input.plotType == 'histogram'",
+                   selectInput(
+                     inputId="histVar",
+                     label="Histogram Variables",
+                     choices= colNames2,
+                     selected = "radius_mean"
+                   ),
+                   sliderInput(
+                     inputId = "bins", 
+                     label = "Number of Bins",
+                     min=0, 
+                     max=5, 
+                     value=0.5
+                   )
+                 ),
+
+                 #only show when scatter plot is selected
+                 conditionalPanel(
+                   condition = "input.plotType == 'scatterPlot'",
+                   selectizeInput(
+                     inputId = "diagnosis",
+                     label = "Diagnosis", 
+                     selected = "B", 
+                     choices = levels(cancer$diagnosis)),
+                   
+                   sliderInput(
+                     inputId = "size", 
+                     label = "Size of Points on Graph",
+                     min = 1, max = 10, value = 5, step =1),
+                   radioButtons(
+                     inputId = "geomSmooth",
+                     label= "Add regression line?",
+                     choiceValues = c(TRUE, FALSE),
+                     choiceNames = c("Yes", "No"),
+                     selected = FALSE,
+                     inline = TRUE)
+                   ),
+                 
                 br(),
+                
                 h4("Note: Numerical summaries are generated automatically for selected variable/s."),
                 br(),
                 h4("Data Set"),
@@ -140,7 +173,7 @@ shinyUI(navbarPage(
                             choices=c("Means"="avg",
                                       "Standard Deviations" = "sd",
                                       "Data only!" = "dat")),
-                  conditionalPanel("input.exploreFunc=='dat'",
+                conditionalPanel("input.exploreFunc=='dat'",
                                    checkboxGroupInput(inputId = "xplrSub", label="Click variables to display:",
                                                       selected = colNames,
                                                       choices = colNames)
@@ -159,7 +192,7 @@ shinyUI(navbarPage(
                ),
                mainPanel(
                  h2("Graphical Summary"),
-                 plotlyOutput("explorePlot"),
+                 plotlyOutput("graph"),
                  br(),
                  h2("Numerical Summaries"),
                  dataTableOutput("exploreSummary"),
@@ -232,8 +265,8 @@ shinyUI(navbarPage(
           selectInput(
             inputId = "logRegVars",
             label = "2.1 Variables for Logistic Regression:",
-            choices = colNames,
-            selected = colNames,
+            choices = colNames2,
+            selected = colNames2,
             multiple = TRUE,
             selectize = TRUE
           ),
@@ -241,14 +274,8 @@ shinyUI(navbarPage(
           selectInput(
             inputId = "treeVars",
             label = "2.2 Variables for Classification Tree:",
-            choices = colNames,
-            selected = c("householdincome",
-                         "readingscore",
-                         "writingscore",
-                         "mathscore",
-                         "mathscoreSL",
-                         "readingscoreSL",
-                         "writingscoreSL"),
+            choices = colNames2,
+            selected = colNames2,
             multiple = TRUE,
             selectize = TRUE
           ),
@@ -273,8 +300,8 @@ shinyUI(navbarPage(
           selectInput(
             inputId = "randForVars",
             label = "2.3 Variables for Random Forest:",
-            choices = colNames,
-            selected = colNames,
+            choices = colNames2,
+            selected = colNames2,
             multiple = TRUE,
             selectize = TRUE),
           #additional random forests parameters
@@ -282,8 +309,8 @@ shinyUI(navbarPage(
           div(
             selectizeInput(
             inputId = "randForMtry",
-            label = "Select up to 5 values for mtry:",
-            choices = 1:length(colnames(data)[1:16]),
+            label = "Select 5 values for mtry:",
+            choices = 1:length(colnames(cancer)[2:32]),
             multiple = TRUE,
             selected = c(2, 5, 8, 10, 12),
             options = list(maxItems = 5)),
@@ -331,11 +358,6 @@ shinyUI(navbarPage(
             choiceValues = c("logReg", "tree", "randFor"),
             selected = "logReg"),
 
-          #action button to fit model
-          actionButton(
-            inputId = "predStart",
-            label = "Predict Pass or Fail"),
-
           #depending on which model selected, change variables shown
           conditionalPanel(
             condition = "input.modelType == 'logReg'",
@@ -348,12 +370,17 @@ shinyUI(navbarPage(
           conditionalPanel(
             condition = "input.modelType == 'randFor'",
             uiOutput("randForPredInputs")
-          )
+          ),
+          
+          #action button to fit model
+          actionButton(
+            inputId = "predStart",
+            label = "Predict Benign or Malignant.")
         ),
 
         ##mainpanel
         mainPanel(
-          h3("Prediction of Math State Level Test with Your Inputs:"),
+          h3("Breast Cancer Diagnosis Prediction: Benign(B) or Malignant(M):"),
           dataTableOutput("preds")
         )
       )

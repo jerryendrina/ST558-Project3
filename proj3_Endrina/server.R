@@ -8,14 +8,27 @@ library(plotly)
 library(DT)
 library(caret)
 library(rattle)
-library(rpart.plot)
+library(caret)
+library(ggplot2)
+
+
+#read-in data
+cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
+  dplyr::select(-c(id, ends_with("se"), ends_with("worst")))
+
+cancer$diagnosis <- as.factor(cancer$diagnosis)
+colNames2 <-names(cancer[,2:10])
 
 
 # Read in data and subset it
 data <- read_excel("../COVID-19-Constructed-Dataset.xlsx")
 
-data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 60, "Fail", "Pass")) %>%
+data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 70, "Fail", "Pass")) %>%
   dplyr::select(-c(studentID, mathscoreSL))
+
+#data 2 for modeling and prediction
+#data2 <- data
+#data2$mathPassFail <- as.factor(data2$mathPassFail)
 
 data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
                         gender=if_else(gender==1, "Male", "Female"),
@@ -36,9 +49,17 @@ data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
 cols <- c(1:4, 6, 9:10, 16)
 data[cols] <-lapply(data[cols], factor)
 
-colNames <- names(data)
 
-#split data into training and test set
+#create dummy dataset
+dummies <- dummyVars(mathPassFail ~., data=data)
+data2 <- as_tibble(predict(dummies, newdata=data)) %>% 
+  bind_cols(mathPassFail = data$mathPassFail)
+
+data2$mathPassFail <- as.factor(data2$mathPassFail)
+
+
+colNames <- names(data[,1:15])
+
 
 
 
@@ -52,142 +73,132 @@ colNames <- names(data)
 shinyServer(function(input, output, session) {
   
 ################### 2nd Tab: DATA EXPLORATION ##########################
-
-  output$explorePlot <- renderPlotly({
-    if(input$plottype == 'hist'){
-      #generate histogram
-      if(input$histvar == "householdincome"){
-        plot_ly(x=~data$householdincome, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Household Income </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "readingscore"){
-        plot_ly(x=~data$readingscore, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Reading Score </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "writingscore"){
-        plot_ly(x=~data$writingscore, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Writing Score </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "mathscore"){
-        plot_ly(x=~data$mathscore, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Math Score </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "readingscoreSL"){
-        plot_ly(x=~data$readingscoreSL, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Reading Score State Level </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "writingscoreSL"){
-        plot_ly(x=~data$writingscoreSL, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Writing Score State Level </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "numcomputers"){
-        plot_ly(x=~data$numcomputers, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Number of Computers </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      } else if(input$histvar == "familysize"){
-        plot_ly(x=~data$familysize, type="histogram", nbinsx = input$bins) %>% 
-          layout(xaxis=list(title=list(text='<b> Family Size </b>')),
-                 yaxis=list(title=list(text='<b> Frequency </b>')))
-      }
-      
-    } else if(input$plottype == 'bar'){
-      #create regular bar plot
-        if (input$barcolor == FALSE){
-          if(input$barvar == 'freelunch'){
-            plot_ly(data = data, x=~freelunch, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Lunch Status </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'covidpos'){
-            plot_ly(data = data, x=~covidpos, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Covid Status </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'school'){
-            plot_ly(data = data, x=~school, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> School Type </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'gradelevel'){
-            plot_ly(data = data, x=~gradelevel, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Grade Level </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'gender'){
-            plot_ly(data = data, x=~gender, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Gender </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'fathereduc'){
-            plot_ly(data = data, x=~fathereduc, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Fathers Education </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } else if(input$barvar == 'mothereduc'){
-            plot_ly(data = data, x=~mothereduc, type="histogram") %>%
-              layout(xaxis = list(title = list(text='<b> Mothers Education </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')))
-          } 
-          
-          
-        } else{
-          #Group bars by pass/fail state level test
-          if(input$barvar == "freelunch"){
-            plot_ly(data = data, x = ~freelunch, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Lunch Status </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>'))) 
-          } else if(input$barvar == "covidpos"){
-            plot_ly(data = data, x = ~covidpos, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Covid Status </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          } else if(input$barvar == "school"){
-            plot_ly(data = data, x = ~school, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> School Type </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          } else if(input$barvar == "gradelevel"){
-            plot_ly(data = data, x = ~gradelevel, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Grade Level </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          } else if(input$barvar == "gender"){
-            plot_ly(data = data, x = ~gender, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Gender </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          } else if(input$barvar == "fathereduc"){
-            plot_ly(data = data, x = ~fathereduc, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Fathers Education </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          } else if(input$barvar == "mothereduc"){
-            plot_ly(data = data, x = ~mothereduc, type = "histogram", 
-                    color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-              layout(xaxis = list(title = list(text='<b> Mothers Education </b>')),
-                     yaxis = list(title = list(text='<b> Frequency </b>')),
-                     legend = list(x = 1, y = 0.9, title=list(text='<b> Pass/Fail? </b>')))
-          }
-        }
-      
-    } else{
-      #generate scatter plot
-      if(input$scatcolor == FALSE){
-        plot_ly(data=data, x=~mathscore, y=~householdincome, type="scatter",
-                mode="markers", marker=list(size=4)) %>%
-          layout(xaxis = list(title = list(text='<b> Math Score in Class </b>')),
-                 yaxis = list(title = list(text='<b> Household Income </b>')))
-      } else {
-        plot_ly(data = data, x = ~mathscore, y = ~householdincome, type = "scatter",
-                mode = "markers", marker = list(size = 4),
-                color = ~mathPassFail, colors = c("#5ab4ac", "#d8b365")) %>%
-          layout(xaxis = list(title = list(text='<b> Math Score in Class </b>')),
-                 yaxis = list(title = list(text='<b> Household Income </b>')),
-                 legend = list(x = .8, y = 0.9, title=list(text='<b>  Pass/Fail? </b>')))  
-      }
-    }
+  
+  
+  
+  #get data for specified diagnosis
+  getData <- reactive({
+    diag <- input$diagnosis
+    newData <- cancer %>% filter(diagnosis == diag)
+    newData
   })
+ 
+  #get specific variable data
+  react <- reactive({
+    plot_ly(data=cancer, x = ~input$histVar,  type = "histogram") #%>%
+     # layout(xaxis = list(title = list(text='<b> Average Daily Room Rate </b>')),
+             #yaxis = list(title = list(text='<b> Frequency </b>')))
+  })
+  
+  
+  #generate histogram
+  output$graph <- renderPlotly({
+    
+    #var <- input$histVar
+    
+    if(input$plotType == 'scatterPlot'){
+
+      #get data
+      diagData <- getData()
+      
+      #base plotting
+      #g <- ggplot(diagData, aes(x = radius_mean, y = texture_mean))
+      
+      #add smooth line and size
+      if (input$geomSmooth){
+        #g + geom_smooth() + geom_point(size = input$size)
+        plot_ly(data=diagData, x=~radius_mean, y=~texture_mean, colors = "red")
+      } else{
+        #g + geom_point(size = input$size)
+        plot_ly(data=diagData, x=~radius_mean, y=~texture_mean)
+      }
+      
+    } else {
+      #histData <- getData2()
+      #hist(react()[,1], breaks = 20)
+      #g <- ggplot(cancer, aes(x=react()))
+      #g + geom_histogram(stat="count")
+      react()
+      
+    }
+
+
+    
+    
+    
+   # ggplotly(myPlot)
+    
+    # if(input$plottype == "hist"){
+    #   if(input$histvar == "radius_mean"  ){
+    #     plot_ly(x=~cancer$radius_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Radius Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "texture_mean"){
+    #     plot_ly(x=~cancer$texture_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Texture Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "perimeter_mean"){
+    #     plot_ly(x=~cancer$perimeter_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Perimeter Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "area_mean"){
+    #     plot_ly(x=~cancer$area_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Area Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "smoothness_mean"){
+    #     plot_ly(x=~cancer$smoothness_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Smoothness Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "compactness_mean"){
+    #     plot_ly(x=~cancer$compactness_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Concavity Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "concavity_mean"){
+    #     plot_ly(x=~cancer$concavity_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Number of Computers </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "concave_points_mean"){
+    #     plot_ly(x=~cancer$concave_points_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Concave Points Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "symmetry_mean"){
+    #     plot_ly(x=~cancer$symmetry_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Symmetry Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #     
+    #   } else if(input$histvar == "fractal_dimension_mean"){
+    #     plot_ly(x=~cancer$fractal_dimension_mean, type="histogram", nbinsx = input$bins) %>% 
+    #       layout(xaxis=list(title=list(text='<b> Fractal Dimension Mean </b>')),
+    #              yaxis=list(title=list(text='<b> Frequency </b>')))
+    #   }
+    # 
+    #  } 
+    #  else {
+    #   
+    #   scatterPlot <- ggplot(aes_string(x=varX, y=varY)) + 
+    #          geom_point(color="red", alpha=0.4) +
+    #          scale_x_continuous(varX) +
+    #          scale_y_continuous(varY)
+    # }
+    # 
+    # if (addRegression) {
+    #   scatterPlot <- scatterPlot +
+    #     geom_smooth(color="grey20")
+    # }
+    # 
+    # #ggplotly(scatterPlot)
+    
+  })
+  
+  
   #Numeric Summary Table
   output$exploreSummary <- renderDataTable({
     if(input$plottype == 'hist'){
@@ -291,15 +302,15 @@ shinyServer(function(input, output, session) {
       inputId = "minCp",
       label = "Minimum",
       min = 0,
-      max = 1000,
-      value = 0.01
+      max = 0.1,
+      value = 0
     )
   })
   
   #input box for max # of cp in the tree
   output$maxCpInput <- renderUI({
     minCp <- input$minCp
-    value <- 10
+    value <- 0.1
     if(minCp > value){
       value <- minCp
     }
@@ -307,7 +318,7 @@ shinyServer(function(input, output, session) {
       inputId = "maxCp",
       label = "Maximum",
       min = minCp,
-      max = 1000,
+      max = 0.1,
       value = value)
   })
   
@@ -336,7 +347,7 @@ shinyServer(function(input, output, session) {
     minCp <- input$minCp
     maxCp <- input$maxCp
     numCps <- input$numCps
-    Cps <- seq(minCp, maxCp, length.out=numCps)
+    Cps <- seq(minCp, maxCp, 0.001)
 
     #random forest mtrys
     randForMtry <- as.numeric(input$randForMtry)
@@ -346,13 +357,14 @@ shinyServer(function(input, output, session) {
     
     #testing indexes
     testInd <- createDataPartition(
-      data$mathPassFail, 
+      cancer$diagnosis, 
       p=1-input$proTesting,
       list = F)
     
     #split data
-    train <- data[-testInd, ]
-    test <- data[testInd, ]
+    train <- cancer[-testInd, ]
+    test <- cancer[testInd, ]
+    colnames(train) <- make.names(colnames(train))
     
     #suppress any warning in the modeling process
     suppressWarnings(library(caret))
@@ -368,11 +380,10 @@ shinyServer(function(input, output, session) {
     
     #logistic regression using cv
     logRegModel <- train(
-      mathPassFail ~ . , 
-      data = train[, c(c("mathPassFail"), logRegVars)],
+      diagnosis ~ . , 
+      data = train[, c(c("diagnosis"), logRegVars)],
       method = "glm",
       family = "binomial",
-      metric = "Accuracy",
       trControl = TrControl
       )
     
@@ -381,10 +392,9 @@ shinyServer(function(input, output, session) {
     
     #classification tree using cv
      treeModel = train(
-       mathPassFail ~ . ,
-       data = train[, c(c("mathPassFail"), treeVars)],
+       diagnosis ~ . ,
+       data = train[, c(c("diagnosis"), treeVars)],
        method = "rpart",
-       metric = "Accuracy",
        tuneGrid = expand.grid(cp = Cps),
        trControl = TrControl
      )
@@ -394,10 +404,9 @@ shinyServer(function(input, output, session) {
     
     #random forest using cv
     rfModel <- train(
-      mathPassFail ~.,
-      data = train[, c(c("mathPassFail"), randForVars)],
+      diagnosis ~.,
+      data = train[, c(c("diagnosis"), randForVars)],
       method = "rf",
-      metric = "Accuracy",
       tuneGrid = expand.grid(mtry = randForMtry),
       trControl = TrControl
     )
@@ -415,9 +424,9 @@ shinyServer(function(input, output, session) {
     
     #test set accuracy rates
     accVec <- c(
-      mean(logRegPreds == test$mathPassFail, na.rm=TRUE),
-      mean(treePreds == test$mathPassFail, na.rm=TRUE),
-      mean(randForPreds == test$mathPassFail, na.rm=TRUE)
+      mean(logRegPreds == test$diagnosis, na.rm=TRUE),
+      mean(treePreds == test$diagnosis, na.rm=TRUE),
+      mean(randForPreds == test$diagnosis, na.rm=TRUE)
     )
 
     #convert to percentages in a matrix
@@ -430,7 +439,7 @@ shinyServer(function(input, output, session) {
     
     #convert to dataframe
     accTable <- as.data.frame(accMatrix) %>%
-      mutate_all(round, digits = 3) %>%
+      mutate_all(round, digits = 4) %>%
       mutate_all(paste0, sep="%")
 
     #output accuracy rates table
@@ -440,15 +449,12 @@ shinyServer(function(input, output, session) {
 
     # #output for logistic regression summary
      output$logRegSummary <- renderDataTable({
-       round(as.data.frame(summary(logRegModel)$coef), 3)
+       round(as.data.frame(summary(logRegModel)$coef), 4)
      })
     
     #create tree diagram
     output$treeSummary <- renderPlot({
-       rpart.plot(treeModel$finalModel, 
-                  box.palette="RdBu", 
-                  shadow.col="gray", 
-                  nn=TRUE)
+      fancyRpartPlot(treeModel$finalModel)
      })
     
     #output feature importance plot for random forest
@@ -473,69 +479,14 @@ shinyServer(function(input, output, session) {
     #get variables to use for each model
     logRegVars <- input$logRegVars
     
-    #list of numeric variables
-    numeric <- c("householdincome", "numcomputers", "familysize", "readingscore", 
-                 "writingscore", "mathscore", "readingscoreSL", "writingscoreSL") 
-
     #loop through the vars and create numeric input boxes for each.
     tags$ul(tagList(
       lapply(logRegVars, function(variable){
-        if(variable %in% numeric){
-          numericInput(
-            inputId = paste0(variable, "value"),
-            label = paste0(variable),
-            value = round(median(pull(data[ ,variable]), na.rm=TRUE),2),
-            step = 0.1)
-        } else if(variable == "school"){
-          numericInput(
-            inputId = "school value",
-            label = "school: wealthy=0, poor=1",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "gradelevel"){
-          numericInput(
-            inputId = "gradelevel value",
-            label = "gradelevel",
-            min = 6,
-            max = 12,
-            value = 6)
-        } else if(variable == "gender"){
-          numericInput(
-            inputId = "gender value",
-            label = "gender: male=1, female=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "covidpos"){
-          numericInput(
-            inputId = "covidpos value",
-            label = "covidpos: positive=1, negative=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "freelunch"){
-          numericInput(
-            inputId = "freelunch value",
-            label = "freelunch: free=1, pay=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "fathereduc"){
-          numericInput(
-            inputId = "fathereduc value",
-            label = "fathereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        } else if(variable == "mothereduc") {
-          numericInput(
-            inputId = "mothereduc value",
-            label = "mothereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        }
+        numericInput(
+          inputId = paste0(variable, "value"),
+          label = paste0(variable),
+          value = round(median(pull(cancer[ ,variable]), na.rm=TRUE), 2),
+          step = 0.1)
       })
     ))
   })
@@ -546,69 +497,14 @@ shinyServer(function(input, output, session) {
     #get variables to use for each model
     treeVars <- input$treeVars
     
-    #list of numeric variables
-    numeric <- c("householdincome", "numcomputers", "familysize", "readingscore", 
-                 "writingscore", "mathscore", "readingscoreSL", "writingscoreSL") 
-    
     #loop through the vars and create numeric input boxes for each.
     tags$ul(tagList(
       lapply(treeVars, function(variable){
-        if(variable %in% numeric){
-          numericInput(
-            inputId = paste0(variable, "value"),
-            label = paste0(variable),
-            value = round(median(pull(data[ ,variable]), na.rm=TRUE),2),
-            step = 0.1)
-        } else if(variable == "school"){
-          numericInput(
-            inputId = "school value",
-            label = "school: wealthy=0, poor=1",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "gradelevel"){
-          numericInput(
-            inputId = "gradelevel value",
-            label = "gradelevel",
-            min = 6,
-            max = 12,
-            value = 6)
-        } else if(variable == "gender"){
-          numericInput(
-            inputId = "gender value",
-            label = "gender: male=1, female=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "covidpos"){
-          numericInput(
-            inputId = "covidpos value",
-            label = "covidpos: positive=1, negative=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "freelunch"){
-          numericInput(
-            inputId = "freelunch value",
-            label = "freelunch: free=1, pay=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "fathereduc"){
-          numericInput(
-            inputId = "fathereduc value",
-            label = "fathereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        } else if(variable == "mothereduc") {
-          numericInput(
-            inputId = "mothereduc value",
-            label = "mothereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        }
+           numericInput(
+             inputId = paste0(variable, "value"),
+             label = paste0(variable),
+             value = round(median(pull(cancer[ ,variable]), na.rm=TRUE), 2),
+             step = 0.1)
       })
     ))
   })
@@ -620,69 +516,14 @@ shinyServer(function(input, output, session) {
     #get variables to use for each model
     randForVars <- input$randForVars
     
-    #list of numeric variables
-    numeric <- c("householdincome", "numcomputers", "familysize", "readingscore", 
-                 "writingscore", "mathscore", "readingscoreSL", "writingscoreSL") 
-    
     #loop through the vars and create numeric input boxes for each.
     tags$ul(tagList(
       lapply(randForVars, function(variable){
-        if(variable %in% numeric){
-          numericInput(
-            inputId = paste0(variable, "value"),
-            label = paste0(variable),
-            value = round(median(pull(data[ ,variable]), na.rm=TRUE),2),
-            step = 0.1)
-        } else if(variable == "school"){
-          numericInput(
-            inputId = "school value",
-            label = "school: wealthy=0, poor=1",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "gradelevel"){
-          numericInput(
-            inputId = "gradelevel value",
-            label = "gradelevel",
-            min = 6,
-            max = 12,
-            value = 6)
-        } else if(variable == "gender"){
-          numericInput(
-            inputId = "gender value",
-            label = "gender: male=1, female=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "covidpos"){
-          numericInput(
-            inputId = "covidpos value",
-            label = "covidpos: positive=1, negative=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "freelunch"){
-          numericInput(
-            inputId = "freelunch value",
-            label = "freelunch: free=1, pay=0",
-            min = 0,
-            max = 1,
-            value = 1)
-        } else if(variable == "fathereduc"){
-          numericInput(
-            inputId = "fathereduc value",
-            label = "fathereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        } else if(variable == "mothereduc") {
-          numericInput(
-            inputId = "mothereduc value",
-            label = "mothereduc: none=0,HS=1,Bach.=2, Masters=3,PhD=4",
-            min = 0,
-            max = 4,
-            value = 1)
-        }
+        numericInput(
+          inputId = paste0(variable, "value"),
+          label = paste0(variable),
+          value = round(median(pull(cancer[ ,variable]), na.rm=TRUE), 2),
+          step = 0.1)
       })
     ))
   })
@@ -730,13 +571,13 @@ shinyServer(function(input, output, session) {
     probPred <- predict(myModel, userInputs, type="prob")
     
     #combine to single matrix
-    preds <- cbind(classPred, round(probPred, 3))
+    preds <- cbind(classPred, round(probPred, 4))
     
     #add column names
     colnames(preds) <- c(
       "Prediction",
-      "Predicted Prob. of Failure",
-      "Predicted Prob. of Passing"
+      "Predicted Benign Probability",
+      "Predicted Malignant Probability "
     )
     
     #convert preds matrix to data frame
