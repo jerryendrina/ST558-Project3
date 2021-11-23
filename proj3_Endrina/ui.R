@@ -17,42 +17,7 @@ cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
 cancer$diagnosis <- as.factor(cancer$diagnosis)
 colNames2 <-names(cancer[,2:10])
 
-# Read in data and subset it
-data <- read_excel("../COVID-19-Constructed-Dataset.xlsx")
 
-data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 70, "Fail", "Pass")) %>%
-  dplyr::select(-c(studentID, mathscoreSL))
-
-
-data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
-                        gender=if_else(gender==1, "Male", "Female"),
-                        covidpos=if_else(covidpos==1, "Positive", "Negative"),
-                        freelunch=if_else(freelunch==1, "EatsFreeLunch", "PaysForLunch"),
-                        fathereduc=if_else(fathereduc==4, "PhD", 
-                                           if_else(fathereduc==3, "Masters", 
-                                                   if_else(fathereduc==2, "Bachelor",
-                                                           if_else(fathereduc==1, "HSDiploma",
-                                                                   "NoHSDiploma")))),
-                        mothereduc=if_else(mothereduc==4, "PhD", 
-                                           if_else(mothereduc==3, "Masters", 
-                                                   if_else(mothereduc==2, "Bachelor",
-                                                           if_else(mothereduc==1, "HSDiploma",
-                                                                   "NoHSDiploma"))))
-)
-
-cols <- c(1:4, 6, 9:10, 16)
-data[cols] <-lapply(data[cols], factor)
-
-
-#create dummy dataset
-dummies <- dummyVars(mathPassFail ~., data=data)
-data2 <- as_tibble(predict(dummies, newdata=data)) %>% 
-  bind_cols(mathPassFail = data$mathPassFail)
-
-data2$mathPassFail <- as.factor(data2$mathPassFail)
-
-
-colNames <- names(data[,1:15])
 
 
 
@@ -135,25 +100,43 @@ shinyUI(navbarPage(
                    sliderInput(
                      inputId = "bins", 
                      label = "Number of Bins",
-                     min=0, 
-                     max=5, 
-                     value=0.5
-                   )
+                     min=0.1, 
+                     max=20, 
+                     value=0.5,
+                     step=0.2
+                   ),
+                   radioButtons(
+                     inputId = "scale",
+                     label= "Center and scale data?",
+                     choiceValues = c(TRUE, FALSE),
+                     choiceNames = c("Yes", "No"),
+                     selected = FALSE,
+                     inline = TRUE),
+                   radioButtons(
+                     inputId = "fill",
+                     label= "Separate histogram by diagnosis?",
+                     choiceValues = c(TRUE, FALSE),
+                     choiceNames = c("Yes", "No"),
+                     selected = FALSE,
+                     inline = TRUE)
                  ),
 
                  #only show when scatter plot is selected
                  conditionalPanel(
                    condition = "input.plotType == 'scatterPlot'",
-                   selectizeInput(
-                     inputId = "diagnosis",
-                     label = "Diagnosis", 
-                     selected = "B", 
-                     choices = levels(cancer$diagnosis)),
                    
-                   sliderInput(
-                     inputId = "size", 
-                     label = "Size of Points on Graph",
-                     min = 1, max = 10, value = 5, step =1),
+                   selectizeInput(
+                     inputId = "xVar",
+                     label = "Choose X Variable:", 
+                     selected = "radius_mean", 
+                     choices = colNames2),
+                   
+                   selectizeInput(
+                     inputId = "yVar",
+                     label = "Choose Y Variable:", 
+                     selected = "texture_mean", 
+                     choices = colNames2),
+                   
                    radioButtons(
                      inputId = "geomSmooth",
                      label= "Add regression line?",
@@ -165,40 +148,28 @@ shinyUI(navbarPage(
                  
                 br(),
                 
+                
+                
+                
+                
+                
                 h4("Note: Numerical summaries are generated automatically for selected variable/s."),
-                br(),
-                h4("Data Set"),
-                selectInput(inputId="exploreFunc", label="Choose the numeric summary to display:",
-                            selected="dat",
-                            choices=c("Means"="avg",
-                                      "Standard Deviations" = "sd",
-                                      "Data only!" = "dat")),
-                conditionalPanel("input.exploreFunc=='dat'",
-                                   checkboxGroupInput(inputId = "xplrSub", label="Click variables to display:",
-                                                      selected = colNames,
-                                                      choices = colNames)
-                                   ),
-                conditionalPanel("input.exploreFunc != 'dat'",
-                                 checkboxGroupInput(inputId="exploreNumSub", label="Click variables to display:",
-                                                    selected = c("householdincome","numcomputers","familysize",
-                                                                 "readingscore","writingscore","mathscore",
-                                                                 "readingscoreSL", "writingscoreSL"),
-                                                    choices = c("householdincome","numcomputers","familysize",
-                                                                "readingscore","writingscore","mathscore",
-                                                                "readingscoreSL", "writingscoreSL"))
-                                 ),
+                
+                
+                
                  
                  
                ),
                mainPanel(
-                 h2("Graphical Summary"),
-                 plotlyOutput("graph"),
+                 h3("Graphical Summary"),
+                 plotOutput("graph"),
                  br(),
-                 h2("Numerical Summaries"),
-                 dataTableOutput("exploreSummary"),
-                 h2('Data Set')
+                 h3("Numerical Summaries"),
+                 dataTableOutput("numSummary")
+                
                )
-             )),
+             )
+          ),
 
     
     ################## third tab: Modeling page with 3 tabs ###################
@@ -395,16 +366,23 @@ shinyUI(navbarPage(
     tabPanel("Data", fluid=TRUE,
              sidebarLayout(
                sidebarPanel(
-                 sliderInput(
-                   inputId = "rows", 
-                   label = "Select Row Range", 
-                   min = 1, 
-                   max = 1400, 
-                   value = c(1, 1400)),
-                 checkboxGroupInput(
+                 
+                 selectInput(
                              inputId = "cols", 
-                             label="Select Columns", selected=colNames, choices=colNames),
+                             label="Select predictor variable/s:", 
+                             choices= colNames2,
+                             multiple = TRUE,
+                             selected = colNames2,
+                             selectize = TRUE),
+                 
+                 selectInput(
+                   inputId = "filter",
+                   label="Filter by diagnosis:",
+                   choices= c("all", "M", "B"),
+                   selected = "all"),
+
                  downloadButton('download', "Download data!")
+                 
                ),
                mainPanel(
                  h2("The Data Set"),

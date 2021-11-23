@@ -12,56 +12,13 @@ library(caret)
 library(ggplot2)
 
 
+
 #read-in data
 cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
   dplyr::select(-c(id, ends_with("se"), ends_with("worst")))
 
 cancer$diagnosis <- as.factor(cancer$diagnosis)
 colNames2 <-names(cancer[,2:10])
-
-
-# Read in data and subset it
-data <- read_excel("../COVID-19-Constructed-Dataset.xlsx")
-
-data <- data %>% mutate(mathPassFail = ifelse(mathscoreSL < 70, "Fail", "Pass")) %>%
-  dplyr::select(-c(studentID, mathscoreSL))
-
-#data 2 for modeling and prediction
-#data2 <- data
-#data2$mathPassFail <- as.factor(data2$mathPassFail)
-
-data <- data %>% mutate(school=if_else(school==0, "Wealthy", "Poor"),
-                        gender=if_else(gender==1, "Male", "Female"),
-                        covidpos=if_else(covidpos==1, "Positive", "Negative"),
-                        freelunch=if_else(freelunch==1, "EatsFreeLunch", "PaysForLunch"),
-                        fathereduc=if_else(fathereduc==4, "PhD", 
-                                           if_else(fathereduc==3, "Masters", 
-                                                   if_else(fathereduc==2, "Bachelor",
-                                                           if_else(fathereduc==1, "HSDiploma",
-                                                                   "NoHSDiploma")))),
-                        mothereduc=if_else(mothereduc==4, "PhD", 
-                                           if_else(mothereduc==3, "Masters", 
-                                                   if_else(mothereduc==2, "Bachelor",
-                                                           if_else(mothereduc==1, "HSDiploma",
-                                                                   "NoHSDiploma"))))
-)
-
-cols <- c(1:4, 6, 9:10, 16)
-data[cols] <-lapply(data[cols], factor)
-
-
-#create dummy dataset
-dummies <- dummyVars(mathPassFail ~., data=data)
-data2 <- as_tibble(predict(dummies, newdata=data)) %>% 
-  bind_cols(mathPassFail = data$mathPassFail)
-
-data2$mathPassFail <- as.factor(data2$mathPassFail)
-
-
-colNames <- names(data[,1:15])
-
-
-
 
 
 
@@ -76,215 +33,146 @@ shinyServer(function(input, output, session) {
   
   
   
-  #get data for specified diagnosis
-  getData <- reactive({
-    diag <- input$diagnosis
-    newData <- cancer %>% filter(diagnosis == diag)
-    newData
-  })
- 
-  #get specific variable data
-  react <- reactive({
-    plot_ly(data=cancer, x = ~input$histVar,  type = "histogram") #%>%
-     # layout(xaxis = list(title = list(text='<b> Average Daily Room Rate </b>')),
-             #yaxis = list(title = list(text='<b> Frequency </b>')))
-  })
-  
-  
-  #generate histogram
-  output$graph <- renderPlotly({
-    
-    #var <- input$histVar
-    
-    if(input$plotType == 'scatterPlot'){
 
-      #get data
-      diagData <- getData()
-      
+ 
+
+  #scatter plot data
+  scatData <- reactive({
+    cancer[ , c(input$xVar, input$yVar)]
+  })
+  
+  #histogram data
+  histData <- reactive({
+   cancer[ ,c(input$histVar, "diagnosis")]
+    #x[ ,1] <- scale(x[ ,1])
+    #x
+  })
+  
+  #generate plot
+  output$graph <- renderPlot({
+
+    if(input$plotType == 'scatterPlot'){
+      dataScat <- scatData()
       #base plotting
-      #g <- ggplot(diagData, aes(x = radius_mean, y = texture_mean))
+      g <- ggplot(dataScat, aes(x = !!rlang::sym(input$xVar), 
+                                y = !!rlang::sym(input$yVar)))
       
-      #add smooth line and size
+      #add smooth line
       if (input$geomSmooth){
-        #g + geom_smooth() + geom_point(size = input$size)
-        plot_ly(data=diagData, x=~radius_mean, y=~texture_mean, colors = "red")
+        g + geom_point() + geom_smooth()
       } else{
-        #g + geom_point(size = input$size)
-        plot_ly(data=diagData, x=~radius_mean, y=~texture_mean)
+        g + geom_point()
       }
       
     } else {
-      #histData <- getData2()
-      #hist(react()[,1], breaks = 20)
-      #g <- ggplot(cancer, aes(x=react()))
-      #g + geom_histogram(stat="count")
-      react()
       
+      if(input$scale){
+        
+        dataHist <- histData()
+        dataHist[, 1] <- scale(dataHist[ ,1])
+
+        if(input$fill){
+          ggplot(dataHist, aes(x = !!rlang::sym(input$histVar),
+                               fill=!!rlang::sym("diagnosis"))) +
+            geom_histogram(binwidth = input$bins)
+        } else {
+          ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
+            geom_histogram(binwidth = input$bins)
+         }
+        
+      } else {
+        
+        dataHist <- histData()
+
+        if(input$fill){
+          ggplot(dataHist, aes(x = !!rlang::sym(input$histVar),
+                               fill=!!rlang::sym("diagnosis"))) +
+            geom_histogram(binwidth = input$bins)
+        } else {
+          ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
+            geom_histogram(binwidth = input$bins)
+        }
+      }
     }
-
-
-    
-    
-    
-   # ggplotly(myPlot)
-    
-    # if(input$plottype == "hist"){
-    #   if(input$histvar == "radius_mean"  ){
-    #     plot_ly(x=~cancer$radius_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Radius Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "texture_mean"){
-    #     plot_ly(x=~cancer$texture_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Texture Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "perimeter_mean"){
-    #     plot_ly(x=~cancer$perimeter_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Perimeter Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "area_mean"){
-    #     plot_ly(x=~cancer$area_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Area Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "smoothness_mean"){
-    #     plot_ly(x=~cancer$smoothness_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Smoothness Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "compactness_mean"){
-    #     plot_ly(x=~cancer$compactness_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Concavity Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "concavity_mean"){
-    #     plot_ly(x=~cancer$concavity_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Number of Computers </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "concave_points_mean"){
-    #     plot_ly(x=~cancer$concave_points_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Concave Points Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "symmetry_mean"){
-    #     plot_ly(x=~cancer$symmetry_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Symmetry Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #     
-    #   } else if(input$histvar == "fractal_dimension_mean"){
-    #     plot_ly(x=~cancer$fractal_dimension_mean, type="histogram", nbinsx = input$bins) %>% 
-    #       layout(xaxis=list(title=list(text='<b> Fractal Dimension Mean </b>')),
-    #              yaxis=list(title=list(text='<b> Frequency </b>')))
-    #   }
-    # 
-    #  } 
-    #  else {
-    #   
-    #   scatterPlot <- ggplot(aes_string(x=varX, y=varY)) + 
-    #          geom_point(color="red", alpha=0.4) +
-    #          scale_x_continuous(varX) +
-    #          scale_y_continuous(varY)
-    # }
-    # 
-    # if (addRegression) {
-    #   scatterPlot <- scatterPlot +
-    #     geom_smooth(color="grey20")
-    # }
-    # 
-    # #ggplotly(scatterPlot)
-    
   })
   
   
   #Numeric Summary Table
-  output$exploreSummary <- renderDataTable({
-    if(input$plottype == 'hist'){
-      if(input$histvar == "householdincome"){
-        data %>% dplyr::select(householdincome, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(householdincome),2), Q1=round(quantile(householdincome,0.25),2),
-                           Median=round(median(householdincome),2), Mean=round(mean(householdincome), 2),
-                           Q3 = round(quantile(householdincome,.75),2), Max=round(max(householdincome),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "readingscore"){
-        data %>% dplyr::select(readingscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(readingscore),2), Q1=round(quantile(readingscore,0.25),2),
-                           Median=round(median(readingscore),2), Mean=round(mean(readingscore), 2),
-                           Q3 = round(quantile(readingscore,.75),2), Max=round(max(readingscore),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "writingscore"){
-        data %>% dplyr::select(writingscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(writingscore),2), Q1=round(quantile(writingscore,0.25),2),
-                           Median=round(median(writingscore),2), Mean=round(mean(writingscore), 2),
-                           Q3 = round(quantile(writingscore,.75),2), Max=round(max(writingscore),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "mathscore"){
-        data %>% dplyr::select(mathscore, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(mathscore),2), Q1=round(quantile(mathscore,0.25),2),
-                           Median=round(median(mathscore),2), Mean=round(mean(mathscore), 2),
-                           Q3 = round(quantile(mathscore,.75),2), Max=round(max(mathscore),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "readingscoreSL"){
-        data %>% dplyr::select(readingscoreSL, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(readingscoreSL),2), Q1=round(quantile(readingscoreSL,0.25),2),
-                           Median=round(median(readingscoreSL),2), Mean=round(mean(readingscoreSL), 2),
-                           Q3 = round(quantile(readingscoreSL,.75),2), Max=round(max(readingscoreSL),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "writingscoreSL"){
-        data %>% dplyr::select(writingscoreSL, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(writingscoreSL),2), Q1=round(quantile(writingscoreSL,0.25),2),
-                           Median=round(median(writingscoreSL),2), Mean=round(mean(writingscoreSL), 2),
-                           Q3 = round(quantile(writingscoreSL,.75),2), Max=round(max(writingscoreSL),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      } else if (input$histvar == "numcomputers"){
-        data %>% dplyr::select(numcomputers, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(numcomputers),2), Q1=round(quantile(numcomputers,0.25),2),
-                           Median=round(median(numcomputers),2), Mean=round(mean(numcomputers), 2),
-                           Q3 = round(quantile(numcomputers,.75),2), Max=round(max(numcomputers),2)) %>%
-          datatable(rownames=FALSE, class="compact")
+  output$numSummary <- renderDataTable({
+    
+    if(input$fill){
+      
+      if(input$scale){
+        dataHist <- histData()
+        dataHist[ ,1] <- scale(dataHist[, 1])
+        dataHist %>% group_by(diagnosis) %>%
+          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                    Max = round(max(!!rlang::sym(input$histVar))), 2)
+        
+        
       } else {
-        data %>% dplyr::select(familysize, mathPassFail) %>% dplyr::group_by(mathPassFail) %>%
-          dplyr::summarize(Min=round(min(familysize),2), Q1=round(quantile(familysize,0.25),2),
-                           Median=round(median(familysize),2), Mean=round(mean(familysize), 2),
-                           Q3 = round(quantile(familysize,.75),2), Max=round(max(familysize),2)) %>%
-          datatable(rownames=FALSE, class="compact")
-      }
-    } else if (input$plottype == "bar"){
-      if(input$barvar == "freelunch"){
-        table(data$freelunch, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Lunch Status", "Pass/Fail", "Count"))
-      } else if(input$barvar == "covidpos"){
-        table(data$covidpos, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Covid Status", "Pass/Fail", "Count"))
-      } else if(input$barvar == "school"){
-        table(data$school, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("School Type", "Pass/Fail", "Count"))
-      } else if(input$barvar == "gradelevel"){
-        table(data$gradelevel, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Grade Level", "Pass/Fail", "Count"))
-      } else if(input$barvar == "gender"){
-        table(data$gender, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Gender", "Pass/Fail", "Count"))
-      } else if(input$barvar == "fathereduc"){
-        table(data$fathereduc, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Gender", "Pass/Fail", "Count"))
-      } else {
-        table(data$mothereduc, data$mathPassFail) %>%
-          datatable(rownames=FALSE, class="compact",
-                    colnames=c("Gender", "Pass/Fail", "Count"))
+        
+        dataHist <- histData()
+        dataHist %>% group_by(diagnosis) %>%
+          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                    Max = round(max(!!rlang::sym(input$histVar))), 2)
+        
       }
       
+    } else {
+      
+      if(input$scale){
+        
+        dataHist <- histData()
+        dataHist[ ,1] <- scale(dataHist[, 1])
+        dataHist %>% 
+          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                    Max = round(max(!!rlang::sym(input$histVar))), 2) 
+        
+        
+      } else {
+        
+        dataHist <- histData()
+        dataHist %>% 
+          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                    Max = round(max(!!rlang::sym(input$histVar))), 2) 
+        
+      }
     }
     
   })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   ################ 3rd Tab: MODELING #######################
@@ -590,8 +478,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  #return output
-  return(output)
+
   
   
   
@@ -599,19 +486,31 @@ shinyServer(function(input, output, session) {
   
   ################ 4th Tab: DATA SET  #####################
 
-  data.out <- reactive({
-    data[input$rows[1]:input$rows[2], input$cols]
+  dataFilter <- reactive({
+    vars <- unlist(input$cols)
+    
+    if (input$filter == "all"){
+      cancer%>% select(c("diagnosis", vars))
+    } else {
+      cancer%>% select(c("diagnosis", vars)) %>% filter(diagnosis == input$filter)
+    }
   })
   
+  
   output$fulldata <- renderDataTable({
-    data.out()
+    
+    dataFilter()
+
   })
   
   output$download <- downloadHandler(
-    filename = function(){"data.csv"},
+    filename = function(){"cancer_data.csv"}, 
     content = function(fname){
-      write.csv(data.out(), fname)
+      write.csv(dataFilter(), fname)
     })
+  
+  #return output
+  return(output)
   
 })
 
