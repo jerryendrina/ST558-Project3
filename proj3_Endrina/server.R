@@ -4,11 +4,9 @@ library(shinyWidgets)
 library(tidyverse)
 library(imager)
 library(readxl)
-library(plotly)
 library(DT)
 library(caret)
 library(rattle)
-library(caret)
 library(ggplot2)
 
 
@@ -32,13 +30,10 @@ shinyServer(function(input, output, session) {
 ################### 2nd Tab: DATA EXPLORATION ##########################
   
   
-  
-
- 
 
   #scatter plot data
   scatData <- reactive({
-    cancer[ , c(input$xVar, input$yVar)]
+    cancer[ , c(input$xVar, input$yVar, "diagnosis")]
   })
   
   #histogram data
@@ -52,17 +47,35 @@ shinyServer(function(input, output, session) {
   output$graph <- renderPlot({
 
     if(input$plotType == 'scatterPlot'){
+      
       dataScat <- scatData()
       #base plotting
       g <- ggplot(dataScat, aes(x = !!rlang::sym(input$xVar), 
-                                y = !!rlang::sym(input$yVar)))
+                                y = !!rlang::sym(input$yVar))) + 
+        geom_point(aes(colour="red", alpha=0.6))
       
-      #add smooth line
       if (input$geomSmooth){
-        g + geom_point() + geom_smooth()
-      } else{
-        g + geom_point()
+        
+        if (input$groupBy){
+          g + geom_smooth(aes(color=!!rlang::sym("diagnosis"))) + 
+            geom_point(aes(color=!!rlang::sym("diagnosis")))
+        } else {
+          g + geom_smooth() + geom_point(aes(colour="red", alpha=0.6))
+        }
+
+      } else if (input$groupBy) {
+        
+        if (input$geomSmooth){
+          g + geom_smooth(aes(color=!!rlang::sym("diagnosis"))) + 
+            geom_point(aes(color=!!rlang::sym("diagnosis")))
+        } else {
+          g + geom_point(aes(color=!!rlang::sym("diagnosis")))
+        }
+        
+      } else {
+        g
       }
+      
       
     } else {
       
@@ -79,6 +92,7 @@ shinyServer(function(input, output, session) {
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
             geom_histogram(binwidth = input$bins)
          }
+        
         
       } else {
         
@@ -100,62 +114,113 @@ shinyServer(function(input, output, session) {
   #Numeric Summary Table
   output$numSummary <- renderDataTable({
     
-    if(input$fill){
+    if (input$plotType == "scatterPlot"){
       
-      if(input$scale){
-        dataHist <- histData()
-        dataHist[ ,1] <- scale(dataHist[, 1])
-        dataHist %>% group_by(diagnosis) %>%
-          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
-                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
-                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
-                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
-                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
-                    Max = round(max(!!rlang::sym(input$histVar))), 2)
-        
-        
+      if(input$groupBy == FALSE){
+        dataScat <- scatData()
+        x <- dataScat %>%
+          summarise(
+                    N = length(!!rlang::sym(input$xVar)),
+                    Min = round(min(!!rlang::sym(input$xVar)), 2), 
+                    Q1 = round(quantile(!!rlang::sym(input$xVar), .25), 2),
+                    Median = round(median(!!rlang::sym(input$xVar)), 2), 
+                    Mean = round(mean(!!rlang::sym(input$xVar)), 2), 
+                    Q3 = round(quantile(!!rlang::sym(input$xVar), .75), 2), 
+                    Max = round(max(!!rlang::sym(input$xVar)), 2)
+                    )
+        y <- dataScat %>%
+          summarise(
+            N = length(!!rlang::sym(input$yVar)),
+            Min = round(min(!!rlang::sym(input$yVar)), 2), 
+            Q1 = round(quantile(!!rlang::sym(input$yVar), .25), 2),
+            Median = round(median(!!rlang::sym(input$yVar)), 2), 
+            Mean = round(mean(!!rlang::sym(input$yVar)), 2), 
+            Q3 = round(quantile(!!rlang::sym(input$yVar), .75), 2), 
+            Max = round(max(!!rlang::sym(input$yVar)), 2)
+            )
+        z <- bind_rows(x, y)
+        z$Variable <- c(input$xVar, input$yVar)
+        z[,c(8,1:7)]
+      
       } else {
         
-        dataHist <- histData()
-        dataHist %>% group_by(diagnosis) %>%
-          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
-                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
-                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
-                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
-                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
-                    Max = round(max(!!rlang::sym(input$histVar))), 2)
-        
+        dataScat <- scatData()
+        x <- dataScat %>% group_by(diagnosis) %>%
+          summarise(
+            N = length(!!rlang::sym(input$xVar)),
+            Min = round(min(!!rlang::sym(input$xVar)), 2), 
+            Q1 = round(quantile(!!rlang::sym(input$xVar), .25), 2),
+            Median = round(median(!!rlang::sym(input$xVar)), 2), 
+            Mean = round(mean(!!rlang::sym(input$xVar)), 2), 
+            Q3 = round(quantile(!!rlang::sym(input$xVar), .75), 2), 
+            Max = round(max(!!rlang::sym(input$xVar)), 2)
+          )
+        y <- dataScat %>% group_by(diagnosis) %>%
+          summarise(
+            N = length(!!rlang::sym(input$yVar)),
+            Min = round(min(!!rlang::sym(input$yVar)), 2), 
+            Q1 = round(quantile(!!rlang::sym(input$yVar), .25), 2),
+            Median = round(median(!!rlang::sym(input$yVar)), 2), 
+            Mean = round(mean(!!rlang::sym(input$yVar)), 2), 
+            Q3 = round(quantile(!!rlang::sym(input$yVar), .75), 2), 
+            Max = round(max(!!rlang::sym(input$yVar)), 2)
+          )
+        z <- bind_rows(x, y)
+        z$Variable <- c(input$xVar, input$xVar, input$yVar, input$yVar)
+        z[,c(9,1:8)]
       }
+      
+      
+      
       
     } else {
       
-      if(input$scale){
-        
-        dataHist <- histData()
-        dataHist[ ,1] <- scale(dataHist[, 1])
-        dataHist %>% 
-          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
-                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
-                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
-                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
-                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
-                    Max = round(max(!!rlang::sym(input$histVar))), 2) 
-        
-        
+      if(input$fill){
+        if(input$scale){
+          dataHist <- histData()
+          dataHist[ ,1] <- scale(dataHist[, 1])
+          dataHist %>% group_by(diagnosis) %>%
+            summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                      Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                      Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                      Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                      Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                      Max = round(max(!!rlang::sym(input$histVar)),2))
+        } else {
+          dataHist <- histData()
+          dataHist %>% group_by(diagnosis) %>%
+            summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                      Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                      Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                      Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                      Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                      Max = round(max(!!rlang::sym(input$histVar)),2))
+        }
       } else {
-        
-        dataHist <- histData()
-        dataHist %>% 
-          summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
-                    Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
-                    Median = round(median(!!rlang::sym(input$histVar)), 2), 
-                    Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
-                    Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
-                    Max = round(max(!!rlang::sym(input$histVar))), 2) 
-        
+        if(input$scale){
+          dataHist <- histData()
+          dataHist[ ,1] <- scale(dataHist[, 1])
+          dataHist %>% 
+            summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                      Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                      Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                      Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                      Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                      Max = round(max(!!rlang::sym(input$histVar)),2))
+        } else {
+          dataHist <- histData()
+          dataHist %>% 
+            summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
+                      Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
+                      Median = round(median(!!rlang::sym(input$histVar)), 2), 
+                      Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
+                      Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
+                      Max = round(max(!!rlang::sym(input$histVar)),2))
+        }
       }
+
     }
-    
+
   })
   
   

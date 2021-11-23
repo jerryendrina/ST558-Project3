@@ -2,7 +2,6 @@ library(shiny)
 library(shinyWidgets)
 library(tidyverse)
 library(readxl)
-library(plotly)
 library(DT)
 library(shinythemes)
 library(rattle)
@@ -114,7 +113,7 @@ shinyUI(navbarPage(
                      inline = TRUE),
                    radioButtons(
                      inputId = "fill",
-                     label= "Separate histogram by diagnosis?",
+                     label= "Group by diagnosis?",
                      choiceValues = c(TRUE, FALSE),
                      choiceNames = c("Yes", "No"),
                      selected = FALSE,
@@ -136,6 +135,14 @@ shinyUI(navbarPage(
                      label = "Choose Y Variable:", 
                      selected = "texture_mean", 
                      choices = colNames2),
+                   
+                   radioButtons(
+                     inputId = "groupBy",
+                     label= "Group by diagnosis?",
+                     choiceValues = c(TRUE, FALSE),
+                     choiceNames = c("Yes", "No"),
+                     selected = FALSE,
+                     inline = TRUE),
                    
                    radioButtons(
                      inputId = "geomSmooth",
