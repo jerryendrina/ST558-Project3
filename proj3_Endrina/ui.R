@@ -54,6 +54,7 @@ shinyUI(navbarPage(
                mainPanel(
                  h2("Welcome to the Breast Cancer Diagnosis Prediction Shiny App!"),
                  br(),
+                 shiny::img(src="banner.jpeg", height='256px', width='600px'),
                  
                  #purpose of the app
                  tags$div(
