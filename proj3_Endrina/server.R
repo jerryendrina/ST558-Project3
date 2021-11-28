@@ -11,7 +11,8 @@ library(ggplot2)
 
 
 #read-in data
-cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
+cancer <- read_excel("../data_breast_cancer.xlsx") %>% 
+  as_tibble() %>%
   dplyr::select(-c(id, ends_with("se"), ends_with("worst")))
 
 #convert diagnosis variable to factors
@@ -61,7 +62,8 @@ shinyServer(function(input, output, session) {
         
         #regression line, not grouped by diagnosis
         } else {
-          g + geom_smooth() + geom_point(aes(colour="red", alpha=0.6))
+          g + geom_smooth() +
+            geom_point(aes(colour="red", alpha=0.6))
         }
         
       #if group by diagnosis is chosen
@@ -101,7 +103,7 @@ shinyServer(function(input, output, session) {
         #no grouping
         } else {
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
-            geom_histogram(binwidth = input$bins)
+            geom_histogram(binwidth = input$bins, fill="#FF6666")
         }
       
       #histogram not centered and scaled
@@ -119,7 +121,7 @@ shinyServer(function(input, output, session) {
         #no grouping
         } else {
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
-            geom_histogram(binwidth = input$bins)
+            geom_histogram(binwidth = input$bins, fill="#FF6666")
         }
       }
     }
@@ -271,13 +273,13 @@ shinyServer(function(input, output, session) {
   ############################ 3rd Tab: MODELING ##############################
   
   #log reg formula
-  output$logRegEx <- renderUI({
+  output$logRegFor <- renderUI({
     withMathJax(
       helpText(
         "$$\\ln(\\frac{p_i}{1-p_i}) = \\beta_0 + \\Sigma^k_{j=1}\\beta_jx_{ij}$$"))
   })
   
-  #input box for min # of cp in the tree
+  #input box for min number of cp in the tree
   output$minCpInput <- renderUI({
     numericInput(
       inputId = "minCp",
@@ -288,7 +290,7 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  #input box for max # of cp in the tree
+  #input box for max number of cp in the tree
   output$maxCpInput <- renderUI({
     minCp <- input$minCp
     value <- 0.1
@@ -307,11 +309,13 @@ shinyServer(function(input, output, session) {
   
   observeEvent(input$trainStart,{
     
-    #progress object
+    #status bar object
     progress <- Progress$new()
-    #closes when reacive is exited 
+    
+    #closes when reactive is exited 
     on.exit(progress$close())
-    #message to user
+    
+    #message to display
     progress$set(message = "Running Cross-Validation", value = 0)
     
     #variables to use for each model
@@ -319,7 +323,7 @@ shinyServer(function(input, output, session) {
     treeVars <- unlist(input$treeVars)
     randForVars <- unlist(input$randForVars)
     
-    #proportion of testing and k-folds params
+    #proportion of testing and k-folds parameters
     set.seed(143)
     propTesting <- input$propTesting
     numFolds <- input$numFolds
@@ -350,13 +354,13 @@ shinyServer(function(input, output, session) {
     #suppress any warning in the modeling process
     suppressWarnings(library(caret))
     
-    #set train controls
+    #set controls for training
     TrControl <- trainControl(
       method = "cv",
       number = numFolds
     )
     
-    #increment progress bar and update detail in text
+    #increment status bar and update text message
     progress$inc(0.2, detail = "Fitting Logistic Regression Model")
     
     #logistic regression using cv
@@ -368,7 +372,7 @@ shinyServer(function(input, output, session) {
       trControl = TrControl
       )
     
-    #increment progress bar and update detail in text
+    #increment status bar and update message in text
     progress$inc(0.4, detail = "Fitting Classification Tree Model")
     
     #classification tree using cv
@@ -380,7 +384,7 @@ shinyServer(function(input, output, session) {
        trControl = TrControl
      )
 
-    #increment progress bar and update detail in text
+    #increment status bar and update message in text
      progress$inc(0.6, detail = "Fitting Random Forest Model")
     
     #random forest using cv
@@ -392,16 +396,13 @@ shinyServer(function(input, output, session) {
       trControl = TrControl
     )
     
-    #increment progress bar and update detail in text
+    #increment status bar and update message in text
     progress$inc(0.8, detail = "Evaluating Performance of Models using Test Set")
-
 
     #test predictions
     logRegPreds <- predict(logRegModel, test, type="raw")
     treePreds <- predict(treeModel, test, type="raw")
     randForPreds <- predict(rfModel, test, type="raw")
-    
-    
     
     #test set accuracy rates
     accVec <- c(
@@ -428,7 +429,7 @@ shinyServer(function(input, output, session) {
       datatable(accTable)
     })
 
-    # #output for logistic regression summary
+    #output for logistic regression summary
      output$logRegSummary <- renderDataTable({
        round(as.data.frame(summary(logRegModel)$coef), 4)
      })
@@ -490,7 +491,6 @@ shinyServer(function(input, output, session) {
     ))
   })
   
-  
   ## Random Forest Inputs ##
   output$randForPredInputs <- renderUI({
     
@@ -516,19 +516,26 @@ shinyServer(function(input, output, session) {
     
     #load appropriate model based on selection
     if (modelType == "logReg"){
+      
       #get names of variables
       varsOfInterest <- unlist(lapply(input$logRegVars, paste0, sep="value"))
+      
       #load in the log reg model
       myModel <- readRDS("../Fitted Models/logRegModel.rds")
       
     } else if (modelType == "tree"){
+      
       #get names of variables
       varsOfInterest <- unlist(lapply(input$treeVars, paste0, sep="value"))
+      
       #load in the log reg model
       myModel <- readRDS("../Fitted Models/treeModel.rds")
+      
     } else {
+      
       #get names of variables
       varsOfInterest <- unlist(lapply(input$randForVars, paste0, sep="value"))
+      
       #load in the log reg model
       myModel <- readRDS("../Fitted Models/rfModel.rds")
     } 
@@ -538,6 +545,7 @@ shinyServer(function(input, output, session) {
     for (variable in varsOfInterest){
       inputCopy <- c(inputCopy, input[[variable]])
     }
+    
     #create a 1-row matrix
     inputCopy <- t(matrix(inputCopy))
     
@@ -568,7 +576,6 @@ shinyServer(function(input, output, session) {
     output$preds <- renderDataTable({
       preds
     })
-    
   })
   
   

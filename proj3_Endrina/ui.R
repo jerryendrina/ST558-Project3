@@ -142,10 +142,10 @@ shinyUI(navbarPage(
                    sliderInput(
                      inputId = "bins", 
                      label = "Number of Bins",
-                     min=0.1, 
-                     max=20, 
+                     min=0.001, 
+                     max=15, 
                      value=0.5,
-                     step=0.2
+                     step=0.002
                    ),
                    
                    #widget to center and scale data or not
@@ -244,7 +244,7 @@ shinyUI(navbarPage(
           tags$p("The logistic regression model links the mean response to the 
                  linear form of the regression model using the 'logit' function.
                  The model is defined as:"),
-          uiOutput("logRegEx"),
+          uiOutput("logRegFor"),
           tags$p("Using the function for binary classification, the fitted values
                  are rounded up or down to 1 or 0. This model assumes that each
                  observation is independent and there is little to no multicollinearity
@@ -463,13 +463,11 @@ shinyUI(navbarPage(
                sidebarPanel(
                  
                  #widget to select variables
-                 selectInput(
+                 checkboxGroupInput(
                              inputId = "cols", 
                              label="Select predictor variable/s:", 
                              choices= colNames2,
-                             multiple = TRUE,
-                             selected = colNames2,
-                             selectize = TRUE),
+                             selected = colNames2),
                  
                  #widget to filter by diagnosis
                  selectInput(
