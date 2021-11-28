@@ -9,7 +9,7 @@ of breast cancer as benign or malignant based on different variable inputs.
 Below are the packages required for this app:
 
 1. `shiny` - framework for the app
-2. `shinywidgets` - interactive functionality
+2. `shinyWidgets` - interactive functionality
 3. `tidyverse` - data manipulation and visualization
 4. `readxl` - read-in excel data
 5. `DT` - interactive table for Shiny
@@ -22,7 +22,7 @@ Below are the packages required for this app:
 
 Copy the code below to install the packages in R:
 ```{r}
-packages <- c("shiny", "shinywidgets", "tidyverse", 
+packages <- c("shiny", "shinyWidgets", "tidyverse", 
               "readxl", "DT", "shinythemes", "rattle", 
               "caret", "ggplot2", "imager")
 
