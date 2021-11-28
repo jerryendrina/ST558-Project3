@@ -1,12 +1,12 @@
 # ST558-Project3
-Final project for ST 558: R for Data Science.
+## Final project for ST 558: R for Data Science.
 
 This app is made in partial fulfillment of the requirements for the course ST558. 
 In addition, this is created in an attempt to create an app that predicts diagnosis 
 of breast cancer as benign or malignant based on different variable inputs.
 
 
-Below are the packages required for this app:
+## Below are the packages required for this app:
 
 1. `shiny` - framework for the app
 2. `shinyWidgets` - interactive functionality
@@ -20,7 +20,7 @@ Below are the packages required for this app:
 10. `imager` - incorporate images
 
 
-Copy the code below to install the packages in R:
+## Copy the code below to install the packages in R:
 ```{r}
 packages <- c("shiny", "shinyWidgets", "tidyverse", 
               "readxl", "DT", "shinythemes", "rattle", 
@@ -31,7 +31,7 @@ lapply(packages, library, character.only = TRUE)
 ```
 
 
-Copy the code below to run the app from GitHub:
+## Copy the code below to run the app from GitHub:
 ```{r}
 shiny::runGitHub("ST558-Project3", "jerryendrina", ref="main", subdir="/proj3_Endrina/")
 ```
