@@ -16,3 +16,14 @@ Below are the packages required for this app:
 7. `rattle` -
 8. `caret` -
 9. `ggplot2` - 
+10. `imager` -
+
+Copy the code below and run in R to install the packages:
+
+packages <- c("shiny", "shinywidgets", "tidyverse", "readxl",
+              "DT", "shinythemes", "rattle", "caret", "ggplot2", "imager")
+
+install.packages(packages)
+lapply(packages, library, character.only = TRUE)
+
+
