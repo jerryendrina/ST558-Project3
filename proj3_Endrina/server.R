@@ -10,27 +10,23 @@ library(rattle)
 library(ggplot2)
 
 
-
 #read-in data
 cancer <- read_excel("../data_breast_cancer.xlsx") %>% as_tibble() %>%
   dplyr::select(-c(id, ends_with("se"), ends_with("worst")))
 
+#convert diagnosis variable to factors
 cancer$diagnosis <- as.factor(cancer$diagnosis)
+
+#create list of names of all predictors
 colNames2 <-names(cancer[,2:10])
 
 
 
-
-
-
-
-# Define server logic required to draw a histogram
+#Define server
 shinyServer(function(input, output, session) {
   
 ################### 2nd Tab: DATA EXPLORATION ##########################
   
-  
-
   #scatter plot data
   scatData <- reactive({
     cancer[ , c(input$xVar, input$yVar, "diagnosis")]
@@ -39,69 +35,88 @@ shinyServer(function(input, output, session) {
   #histogram data
   histData <- reactive({
    cancer[ ,c(input$histVar, "diagnosis")]
-    #x[ ,1] <- scale(x[ ,1])
-    #x
   })
   
-  #generate plot
+  ####### graphical summary ###########
   output$graph <- renderPlot({
 
+    #generate scatterplot
     if(input$plotType == 'scatterPlot'){
       
+      #filter data
       dataScat <- scatData()
-      #base plotting
+      
+      #base plot
       g <- ggplot(dataScat, aes(x = !!rlang::sym(input$xVar), 
                                 y = !!rlang::sym(input$yVar))) + 
         geom_point(aes(colour="red", alpha=0.6))
       
+      #if add regression line is chosen
       if (input$geomSmooth){
         
+        #regression line then group by diagnosis
         if (input$groupBy){
           g + geom_smooth(aes(color=!!rlang::sym("diagnosis"))) + 
             geom_point(aes(color=!!rlang::sym("diagnosis")))
+        
+        #regression line, not grouped by diagnosis
         } else {
           g + geom_smooth() + geom_point(aes(colour="red", alpha=0.6))
         }
-
+        
+      #if group by diagnosis is chosen
       } else if (input$groupBy) {
         
+        #group by diagnosis then add regression line
         if (input$geomSmooth){
           g + geom_smooth(aes(color=!!rlang::sym("diagnosis"))) + 
             geom_point(aes(color=!!rlang::sym("diagnosis")))
+        
+        #group by diagnosis, no regression line
         } else {
           g + geom_point(aes(color=!!rlang::sym("diagnosis")))
         }
-        
+      
+      #only base plot
       } else {
         g
       }
       
-      
+    #generate histogram 
     } else {
       
+      #if scale and center is clicked
       if(input$scale){
         
+        #filter data
         dataHist <- histData()
         dataHist[, 1] <- scale(dataHist[ ,1])
 
+        #group data by diagnosis
         if(input$fill){
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar),
                                fill=!!rlang::sym("diagnosis"))) +
             geom_histogram(binwidth = input$bins)
+        
+        #no grouping
         } else {
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
             geom_histogram(binwidth = input$bins)
-         }
-        
-        
+        }
+      
+      #histogram not centered and scaled
       } else {
         
+        #filter data
         dataHist <- histData()
-
+        
+        #group by diagnosis
         if(input$fill){
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar),
                                fill=!!rlang::sym("diagnosis"))) +
             geom_histogram(binwidth = input$bins)
+        
+        #no grouping
         } else {
           ggplot(dataHist, aes(x = !!rlang::sym(input$histVar))) +
             geom_histogram(binwidth = input$bins)
@@ -111,13 +126,20 @@ shinyServer(function(input, output, session) {
   })
   
   
-  #Numeric Summary Table
+  ############ numeric summaries #############
+  
   output$numSummary <- renderDataTable({
     
+    #if scatterplot is clicked
     if (input$plotType == "scatterPlot"){
       
+      #group by diagnosis
       if(input$groupBy == FALSE){
+        
+        #filter data
         dataScat <- scatData()
+        
+        #generate summaries of chosen x var
         x <- dataScat %>%
           summarise(
                     N = length(!!rlang::sym(input$xVar)),
@@ -128,6 +150,8 @@ shinyServer(function(input, output, session) {
                     Q3 = round(quantile(!!rlang::sym(input$xVar), .75), 2), 
                     Max = round(max(!!rlang::sym(input$xVar)), 2)
                     )
+        
+        #generate summaries of chosen y var
         y <- dataScat %>%
           summarise(
             N = length(!!rlang::sym(input$yVar)),
@@ -138,13 +162,19 @@ shinyServer(function(input, output, session) {
             Q3 = round(quantile(!!rlang::sym(input$yVar), .75), 2), 
             Max = round(max(!!rlang::sym(input$yVar)), 2)
             )
+        
+        #bind summaries and convert to data set
         z <- bind_rows(x, y)
         z$Variable <- c(input$xVar, input$yVar)
         z[,c(8,1:7)]
       
+      #if histogram is clicked
       } else {
         
+        #filter data
         dataScat <- scatData()
+        
+        #generate summaries of chosen x var
         x <- dataScat %>% group_by(diagnosis) %>%
           summarise(
             N = length(!!rlang::sym(input$xVar)),
@@ -155,6 +185,8 @@ shinyServer(function(input, output, session) {
             Q3 = round(quantile(!!rlang::sym(input$xVar), .75), 2), 
             Max = round(max(!!rlang::sym(input$xVar)), 2)
           )
+        
+        #generate summarie of chosen y var
         y <- dataScat %>% group_by(diagnosis) %>%
           summarise(
             N = length(!!rlang::sym(input$yVar)),
@@ -165,20 +197,27 @@ shinyServer(function(input, output, session) {
             Q3 = round(quantile(!!rlang::sym(input$yVar), .75), 2), 
             Max = round(max(!!rlang::sym(input$yVar)), 2)
           )
+        
+        #bind summaries and convert to dataframe
         z <- bind_rows(x, y)
         z$Variable <- c(input$xVar, input$xVar, input$yVar, input$yVar)
         z[,c(9,1:8)]
       }
       
-      
-      
-      
+    #if histogram is clicked 
     } else {
       
+      #group by diagnosis
       if(input$fill){
+        
+        #center and scale data
         if(input$scale){
+          
+          #filter data
           dataHist <- histData()
           dataHist[ ,1] <- scale(dataHist[, 1])
+          
+          #generate summaries of chosen variable
           dataHist %>% group_by(diagnosis) %>%
             summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
                       Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
@@ -186,8 +225,14 @@ shinyServer(function(input, output, session) {
                       Mean = round(mean(!!rlang::sym(input$histVar)), 2), 
                       Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
                       Max = round(max(!!rlang::sym(input$histVar)),2))
+        
+        #data not centered and scaled
         } else {
+          
+          #filter data
           dataHist <- histData()
+          
+          #generate summaries of chosen variable
           dataHist %>% group_by(diagnosis) %>%
             summarise(Min = round(min(!!rlang::sym(input$histVar)), 2), 
                       Q1 = round(quantile(!!rlang::sym(input$histVar), .25), 2),
@@ -196,6 +241,8 @@ shinyServer(function(input, output, session) {
                       Q3 = round(quantile(!!rlang::sym(input$histVar), .75), 2), 
                       Max = round(max(!!rlang::sym(input$histVar)),2))
         }
+      
+      #base plot and summaries
       } else {
         if(input$scale){
           dataHist <- histData()
@@ -218,29 +265,10 @@ shinyServer(function(input, output, session) {
                       Max = round(max(!!rlang::sym(input$histVar)),2))
         }
       }
-
     }
-
   })
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  ################ 3rd Tab: MODELING #######################
+  ############################ 3rd Tab: MODELING ##############################
   
   #log reg formula
   output$logRegEx <- renderUI({
@@ -543,31 +571,31 @@ shinyServer(function(input, output, session) {
     
   })
   
-
   
+  ######################### 4th Tab: DATA SET  ################################
   
-  
-  
-  
-  ################ 4th Tab: DATA SET  #####################
-
+  #create reactive input var
   dataFilter <- reactive({
+    
+    #convert all inputs to a list
     vars <- unlist(input$cols)
     
+    #do not filter data set
     if (input$filter == "all"){
       cancer%>% select(c("diagnosis", vars))
+      
+    #filter data set based on specified options
     } else {
       cancer%>% select(c("diagnosis", vars)) %>% filter(diagnosis == input$filter)
     }
   })
   
-  
+  #render data
   output$fulldata <- renderDataTable({
-    
     dataFilter()
-
   })
   
+  #create button to download data
   output$download <- downloadHandler(
     filename = function(){"cancer_data.csv"}, 
     content = function(fname){
@@ -576,7 +604,6 @@ shinyServer(function(input, output, session) {
   
   #return output
   return(output)
-  
 })
 
 
