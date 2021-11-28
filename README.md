@@ -5,6 +5,7 @@ This app is made in partial fulfillment of the requirements for the course ST558
 In addition, this is created in an attempt to create an app that predicts diagnosis 
 of breast cancer as benign or malignant based on different variable inputs.
 
+
 Below are the packages required for this app:
 
 1. `shiny` - framework for the app
@@ -18,6 +19,7 @@ Below are the packages required for this app:
 9. `ggplot2` - visualization
 10. `imager` - incorporate images
 
+
 Copy the code below to install the packages in R:
 ```{r}
 packages <- c("shiny", "shinywidgets", "tidyverse", 
@@ -27,6 +29,7 @@ packages <- c("shiny", "shinywidgets", "tidyverse",
 install.packages(packages)
 lapply(packages, library, character.only = TRUE)
 ```
+
 
 Copy the code below to run the app from GitHub:
 ```{r}
