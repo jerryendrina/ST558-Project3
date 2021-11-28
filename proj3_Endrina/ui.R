@@ -52,9 +52,9 @@ shinyUI(navbarPage(
                
                #Main Panel
                mainPanel(
-                 h2("Welcome to the Breast Cancer Diagnosis Prediction Shiny App!"),
-                 br(),
-                 shiny::img(src="banner.jpeg", height='256px', width='600px'),
+                 
+                 #add image
+                 img(src="banner.png", height='256px', width='600px'),
                  
                  #purpose of the app
                  tags$div(
@@ -230,24 +230,58 @@ shinyUI(navbarPage(
       tabPanel(
         title = "Modeling Information",
         mainPanel(fluidPage(
+          h3("Purpose of the Modeling Section"),
           br(),
-          h4("Purpose of the Modeling Section"),
-          br(),
+          tags$p("This section will implement three supervised modeling techniques that
+             would classify a given observation into benign or malignant based
+             on the real-valued continuous features computed from cell nucleus.
+             The three models are: logistic regression, classification tree and
+             random forest."),
           br(),
           
           #logistic regression overview
-          h4("Logistic Regression"),
+          h3("Logistic Regression"),
+          tags$p("The logistic regression model links the mean response to the 
+                 linear form of the regression model using the 'logit' function.
+                 The model is defined as:"),
           uiOutput("logRegEx"),
+          tags$p("Using the function for binary classification, the fitted values
+                 are rounded up or down to 1 or 0. This model assumes that each
+                 observation is independent and there is little to no multicollinearity
+                 among the predictors. It also assumes a linear relationship
+                 between the predictor variables and the log odds. This makes it
+                 different from the regression model for it makes no assumptions
+                 about distributions of classes. Lastly, it is easier to implement,
+                 interpret and efficient to train."),
           br(),
           br(),
           
           #classification tree overview
-          h4("Classification Trees"),
+          h3("Classification Tree"),
+          tags$p("The classification tree model is based on partitioning data into
+                 subgroups using simple binary splitting. At the start, all objects
+                 are considered a single group then it is split into two subgroups
+                 based on the criteria of a certain variable. Each observation is
+                 then classified in a specific region with majority vote. The goal
+                 is to grow the tree as big as possible and then prune it back using
+                 cost-complexity pruning. The tuning parameter can be tuned
+                 automatically using the `caret` package. One advantage of this 
+                 model is that it is easy to understand and has a good
+                 interpretability. Also, it is not computationally expensive unlike
+                 random forest. A disadvantage is that a small change in the data set
+                 can cause a big change in the grown tree and thus causing instability."),
           br(),
           br(),
           
           #random forest overview
-          h4("Random Forests"),
+          h3("Random Forest"),
+          tags$p("The random forest model is a classification technique that consists
+                 of many decision or classification trees. It uses bagging and 
+                 randomness of features in building each individual tree that will
+                 compose the uncorrelated forest of trees. In this manner, prediction
+                 through majority vote is more accurate than that of individual trees.
+                 Thus, it is an improvement on a single decision tree but is less 
+                 interpretable compared to a single one."),
           br(),
           br()
         ))),
@@ -351,9 +385,6 @@ shinyUI(navbarPage(
         
         #main panel
         mainPanel(
-          h3("Model Performance in Test Set"),
-          dataTableOutput("accTableOutput"),
-          br(),
           h3("Logistic Regression Summary"),
           dataTableOutput("logRegSummary"),
           br(),
@@ -361,7 +392,10 @@ shinyUI(navbarPage(
           plotOutput("treeSummary"),
           br(),
           h3("Random Forest Feature Importance"),
-          plotOutput("rfVarImpPlot")
+          plotOutput("rfVarImpPlot"),
+          br(),
+          h3("Model Performance in Test Set"),
+          dataTableOutput("accTableOutput")
         )
       ),
       
@@ -385,6 +419,9 @@ shinyUI(navbarPage(
               "Random Forest"),
             choiceValues = c("logReg", "tree", "randFor"),
             selected = "logReg"),
+          
+          #provide not that values entered are medians of each variable
+          h4("Note: Entered values are medians of each variable."),
 
           #create conditions to change variables shown depending on models used
           conditionalPanel(
@@ -409,7 +446,10 @@ shinyUI(navbarPage(
         ##mainpanel
         mainPanel(
           h3("Breast Cancer Diagnosis Prediction: Benign(B) or Malignant(M):"),
-          dataTableOutput("preds")
+          dataTableOutput("preds"),
+          
+          #add image
+          img(src="BorM.png", height='579px', width='572px'),
         )
       )
     ),
