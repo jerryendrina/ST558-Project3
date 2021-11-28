@@ -33,6 +33,6 @@ lapply(packages, library, character.only = TRUE)
 
 Copy the code below to run the app from GitHub:
 ```{r}
-shiny::runGitHub("jerryendrina/ST558-Project3/proj3_Endrina", ref="main")
+shiny::runGitHub("ST558-Project3", "jerryendrina", ref="main", subdir="/proj3_Endrina/")
 ```
 
