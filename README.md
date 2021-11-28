@@ -7,32 +7,29 @@ of breast cancer as benign or malignant based on different variable inputs.
 
 Below are the packages required for this app:
 
-1. `shiny` - 
-2. `shinywidgets` - 
-3. `tidyverse` -
-4. `readxl` -
-5. `DT` - 
-6. `shinythemes` -
-7. `rattle` -
-8. `caret` -
-9. `ggplot2` - 
-10. `imager` -
+1. `shiny` - framework for the app
+2. `shinywidgets` - interactive functionality
+3. `tidyverse` - data manipulation and visualization
+4. `readxl` - read-in excel data
+5. `DT` - interactive table for Shiny
+6. `shinythemes` - beautifying the app
+7. `rattle` - visualize tree model
+8. `caret` - train models
+9. `ggplot2` - visualization
+10. `imager` - incorporate images
 
-Copy the code below and run in R to install the packages:
-
+Copy the code below to install the packages in R:
 ```{r}
-packages <- c("shiny", 
-              "shinywidgets", 
-              "tidyverse", 
-              "readxl",
-              "DT", 
-              "shinythemes", 
-              "rattle", 
-              "caret", 
-              "ggplot2", 
-              "imager")
+packages <- c("shiny", "shinywidgets", "tidyverse", 
+              "readxl", "DT", "shinythemes", "rattle", 
+              "caret", "ggplot2", "imager")
 
 install.packages(packages)
 lapply(packages, library, character.only = TRUE)
+```
+
+Copy the code below to run the app from GitHub:
+```{r}
+shiny::runGitHub("jerryendrina/ST558-Project3/proj3_Endrina", ref="main")
 ```
 
