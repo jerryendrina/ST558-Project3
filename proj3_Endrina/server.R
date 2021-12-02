@@ -281,11 +281,12 @@ shinyServer(function(input, output, session) {
   
   #input box for min number of cp in the tree
   output$minCpInput <- renderUI({
-    numericInput(
+    sliderInput(
       inputId = "minCp",
-      label = "Minimum",
+      label = "Minimum 'cp' Value:",
       min = 0,
       max = 0.1,
+      step = 0.001,
       value = 0
     )
   })
@@ -297,11 +298,12 @@ shinyServer(function(input, output, session) {
     if(minCp > value){
       value <- minCp
     }
-    numericInput(
+    sliderInput(
       inputId = "maxCp",
-      label = "Maximum",
+      label = "Maximum 'cp' Value:",
       min = minCp,
       max = 0.1,
+      step = 0.001,
       value = value)
   })
   

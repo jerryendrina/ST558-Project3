@@ -305,7 +305,7 @@ shinyUI(navbarPage(
           
           #cross validation option
           div(
-            numericInput(
+            sliderInput(
               inputId = "numFolds",
               label = "1.2 Number of folds for cross-validation:",
               value = 3,
@@ -340,20 +340,17 @@ shinyUI(navbarPage(
           #additional tree parameters
           h5(tags$b("2.2.1 Complexity Parameters for Trees")),
           div(
-            uiOutput("minCpInput"),
-            style="display:inline-block"),
+            uiOutput("minCpInput")),
           div(
-            uiOutput("maxCpInput"),
-            style= "display:inline-block"),
+            uiOutput("maxCpInput")),
           div(
-            numericInput(
+            sliderInput(
               inputId = "numCps",
-              label = "Number of Values:",
+              label = "Number of 'cp' Values:",
               min = 1,
               max = 5,
               value = 3,
-              step = 1),
-            style = "display:inline-block"),
+              step = 1)),
           
           #random forest options
           selectInput(
@@ -394,7 +391,7 @@ shinyUI(navbarPage(
           h3("Random Forest Feature Importance"),
           plotOutput("rfVarImpPlot"),
           br(),
-          h3("Model Performance in Test Set"),
+          h3("Test Set Model Performance"),
           dataTableOutput("accTableOutput")
         )
       ),
