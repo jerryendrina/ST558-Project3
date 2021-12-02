@@ -314,7 +314,7 @@ shinyUI(navbarPage(
               step = 1)),
           br(),
           
-          #nodeling options
+          #modeling options
           h3("2. Specific Modeling Options"),
           
           #logistic regression options
