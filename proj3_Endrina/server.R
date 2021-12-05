@@ -273,13 +273,13 @@ shinyServer(function(input, output, session) {
   ############################ 3rd Tab: MODELING ##############################
   
   #log reg formula
-  output$logRegFor <- renderUI({
+  output$logRegFormula <- renderUI({
     withMathJax(
       helpText(
         "$$\\ln(\\frac{p_i}{1-p_i}) = \\beta_0 + \\Sigma^k_{j=1}\\beta_jx_{ij}$$"))
   })
   
-  #input box for min number of cp in the tree
+  #slider input for min number of cp in the tree model
   output$minCpInput <- renderUI({
     sliderInput(
       inputId = "minCp",
@@ -291,7 +291,7 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  #input box for max number of cp in the tree
+  #slider input for max number of cp in the tree nodel
   output$maxCpInput <- renderUI({
     minCp <- input$minCp
     value <- 0.1
@@ -317,15 +317,15 @@ shinyServer(function(input, output, session) {
     #closes when reactive is exited 
     on.exit(progress$close())
     
-    #message to display
+    #display a messahe that cross-validation is being done
     progress$set(message = "Running Cross-Validation", value = 0)
     
-    #variables to use for each model
+    #collect variables to use for each model
     logRegVars <- unlist(input$logRegVars)
     treeVars <- unlist(input$treeVars)
     randForVars <- unlist(input$randForVars)
     
-    #proportion of testing and k-folds parameters
+    #save proportion of testing and k-folds parameters
     set.seed(143)
     propTesting <- input$propTesting
     numFolds <- input$numFolds
@@ -333,7 +333,6 @@ shinyServer(function(input, output, session) {
     #cps to try
     minCp <- input$minCp
     maxCp <- input$maxCp
-    numCps <- input$numCps
     Cps <- seq(minCp, maxCp, 0.001)
 
     #random forest mtrys
@@ -342,7 +341,7 @@ shinyServer(function(input, output, session) {
     #set seed
     set.seed(143)
     
-    #testing indexes
+    #create testing indexes
     testInd <- createDataPartition(
       cancer$diagnosis, 
       p=1-input$proTesting,
@@ -362,7 +361,7 @@ shinyServer(function(input, output, session) {
       number = numFolds
     )
     
-    #increment status bar and update text message
+    #update message display
     progress$inc(0.2, detail = "Fitting Logistic Regression Model")
     
     #logistic regression using cv
@@ -374,7 +373,7 @@ shinyServer(function(input, output, session) {
       trControl = TrControl
       )
     
-    #increment status bar and update message in text
+    #update message to display
     progress$inc(0.4, detail = "Fitting Classification Tree Model")
     
     #classification tree using cv
@@ -386,7 +385,7 @@ shinyServer(function(input, output, session) {
        trControl = TrControl
      )
 
-    #increment status bar and update message in text
+    #update message to display
      progress$inc(0.6, detail = "Fitting Random Forest Model")
     
     #random forest using cv
@@ -398,7 +397,7 @@ shinyServer(function(input, output, session) {
       trControl = TrControl
     )
     
-    #increment status bar and update message in text
+    #update message to display
     progress$inc(0.8, detail = "Evaluating Performance of Models using Test Set")
 
     #test predictions
@@ -426,29 +425,29 @@ shinyServer(function(input, output, session) {
       mutate_all(round, digits = 4) %>%
       mutate_all(paste0, sep="%")
 
-    #output accuracy rates table
-    output$accTableOutput <- renderDataTable({
+    #generate accuracy rates table
+    output$accuracyTableOutput <- renderDataTable({
       datatable(accTable)
     })
 
-    #output for logistic regression summary
+    #generate for logistic regression summary
      output$logRegSummary <- renderDataTable({
        round(as.data.frame(summary(logRegModel)$coef), 4)
      })
     
-    #create tree diagram
+    #generate tree diagram
     output$treeSummary <- renderPlot({
       fancyRpartPlot(treeModel$finalModel)
      })
     
-    #output feature importance plot for random forest
-    output$rfVarImpPlot <- renderPlot({
+    #generate feature importance plot for random forest
+    output$randomForestPlot <- renderPlot({
       ggplot(varImp(rfModel, type=2)) +
         geom_col(fill="blue") +
         ggtitle("Variable Importance in Random Forest")
     })
 
-    #save fitted models in a folder
+    #save fitted models in a folder for later access
     saveRDS(logRegModel, "../Fitted Models/logRegModel.rds")
     saveRDS(treeModel, "../Fitted Models/treeModel.rds")
     saveRDS(rfModel, "../Fitted Models/rfModel.rds")

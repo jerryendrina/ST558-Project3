@@ -230,7 +230,7 @@ shinyUI(navbarPage(
       tabPanel(
         title = "Modeling Information",
         mainPanel(fluidPage(
-          h3("Purpose of the Modeling Section"),
+          h3("Modeling Section Purpose"),
           br(),
           tags$p("This section will implement three supervised modeling techniques that
              would classify a given observation into benign or malignant based
@@ -244,7 +244,7 @@ shinyUI(navbarPage(
           tags$p("The logistic regression model links the mean response to the 
                  linear form of the regression model using the 'logit' function.
                  The model is defined as:"),
-          uiOutput("logRegFor"),
+          uiOutput("logRegFormula"),
           tags$p("Using the function for binary classification, the fitted values
                  are rounded up or down to 1 or 0. This model assumes that each
                  observation is independent and there is little to no multicollinearity
@@ -343,14 +343,6 @@ shinyUI(navbarPage(
             uiOutput("minCpInput")),
           div(
             uiOutput("maxCpInput")),
-          div(
-            sliderInput(
-              inputId = "numCps",
-              label = "Number of 'cp' Values:",
-              min = 1,
-              max = 5,
-              value = 3,
-              step = 1)),
           
           #random forest options
           selectInput(
@@ -389,10 +381,10 @@ shinyUI(navbarPage(
           plotOutput("treeSummary"),
           br(),
           h3("Random Forest Feature Importance"),
-          plotOutput("rfVarImpPlot"),
+          plotOutput("randomForestPlot"),
           br(),
           h3("Test Set Model Performance"),
-          dataTableOutput("accTableOutput")
+          dataTableOutput("accuracyTableOutput")
         )
       ),
       
